@@ -1,0 +1,29 @@
+# --- Python & Flask ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+instance/
+.pytest_cache/
+
+# --- SQLite Database ---
+*.db
+*.sqlite3
+
+# --- Vue.js / Frontend ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.stylelintcache
+
+# --- Redis & Celery ---
+dump.rdb
+celerybeat-schedule
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
