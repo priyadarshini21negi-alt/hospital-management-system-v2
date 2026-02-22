@@ -71,11 +71,12 @@ class Doctor(db.Model):
     
     def to_dict(self):
         return{
-            "id":self.id,
-            "name":self.name,
-            "experience":self.experience,
-            "department_name":self.department.name if self.department else None, 
-            "email":self.user.email if self.user else None
+            "id": self.id,
+            "name": self.name,
+            "department_id": self.department_id,
+            "department_name": self.department.name if self.department else None,
+            "career_start_year": self.career_start_year,
+            "email": self.user.email if self.user else None
         }
 
 

@@ -24,7 +24,8 @@ def create_app():
     security.init_app(app, user_datastore)
 
     # API
-    from .api import DoctorAPI, PatientRegister, UserResource
+    
+    from .api import DoctorAPI, PatientRegister, UserResource, PatientAPI, AdminAppointmentAPI, AdminStatsAPI
     
     api.add_resource(DoctorAPI,
                      '/api/doctors',
@@ -37,6 +38,17 @@ def create_app():
     api.add_resource(UserResource,
                      '/api/user_info',
                     )
+
+    # 2. Add the Patient mapping here!
+    api.add_resource(PatientAPI,
+                     '/api/patients',
+                     '/api/patients/<int:patient_id>'
+                    )
+    api.add_resource(AdminAppointmentAPI,
+                     '/api/admin/appointments',
+                     '/api/admin/appointments/<int:appointment_id>'
+                    )
+    api.add_resource(AdminStatsAPI, '/api/admin/stats')
 
     # DB tables
     with app.app_context():
