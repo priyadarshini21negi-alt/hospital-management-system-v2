@@ -192,7 +192,8 @@ class DocAvailability(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "start": self.start_time.isoformat(),
-            "end": self.end_time.isoformat(),
+            "doctor_id": self.doctor_id,
+            "start": self.start_time.isoformat() if self.start_time else None,
+            "end": self.end_time.isoformat() if self.end_time else None,
             "is_booked": self.is_booked
         } 

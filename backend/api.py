@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import current_app, request, jsonify
 from flask_restful import Resource, Api
 from flask_security import auth_required, current_user, hash_password
-from .models import db, User, Patient, Doctor, Department, Appointment
+from .models import db, User, Patient, Doctor, Department, Appointment, Treatment, DocAvailability
 from sqlalchemy import or_, and_ 
 
 
@@ -325,3 +325,204 @@ class AdminStatsAPI(Resource):
             "total_doctors": Doctor.query.count(),
             "total_appointments": Appointment.query.count()
         }, 200
+
+
+#--------------------------------------------------        
+# 6. DOCTOR'S APPOINTMENT & TREATMENT API 
+#---------------------------------------------------- 
+class DoctorAppointmentsAPI(Resource):
+    @auth_required("token")
+    def get(self):
+  
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized. Doctor access only."}, 403
+
+        # specific doc - userprofile
+        current_doctor = current_user.doctor 
+        if not current_doctor:
+            return {"message": "Doctor profile not found."}, 404
+
+        #  ONLY this doctor's appointments
+        appointments = Appointment.query.filter_by(doctor_id=current_doctor.id).order_by(Appointment.appointment_datetime.asc()).all()
+        
+        # Includes treatment info if completed
+        result = []
+        for app in appointments:
+            app_data = app.to_dict()
+            if app.treatment:
+                app_data['treatment'] = app.treatment.to_dict()
+            else:
+                app_data['treatment'] = None
+            result.append(app_data)
+            
+        return result, 200
+
+    #  Add a treatment to an appointment
+    @auth_required("token")
+    def post(self):
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403
+
+        data = request.get_json()
+        appointment_id = data.get('appointment_id')
+        
+        appointment = Appointment.query.get(appointment_id)
+        
+         # appointment actually belongs to this doctor
+        if appointment.doctor_id != current_user.doctor.id:
+            return {"message": "You cannot treat another doctor's patient."}, 403
+
+        try:
+            # Create Treatment
+            new_treatment = Treatment(
+                appointment_id=appointment.id,
+                diagnosis=data.get('diagnosis'),
+                prescription=data.get('prescription'),
+                notes=data.get('notes', '')
+            )
+            # Update Appointment Status
+            appointment.status = "Completed"
+            
+            db.session.add(new_treatment)
+            db.session.commit()
+            return {"message": "Treatment added and appointment completed!"}, 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+
+#--------------------------------------------------        
+# 7. PATIENT APPOINTMENT API 
+#---------------------------------------------------- 
+class PatientAppointmentsAPI(Resource):
+    # R: Patient viewing their own appointments
+    @auth_required("token")
+    def get(self):
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized. Patient access only."}, 403
+            
+        appointments = Appointment.query.filter_by(
+            patient_id=current_user.patient.id
+        ).order_by(Appointment.appointment_datetime.asc()).all()
+        
+        return [app.to_dict() for app in appointments], 200
+
+    # C: Patient booking a new appointment
+    @auth_required("token")
+    def post(self):
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403
+
+        data = request.get_json()
+        doctor_id = data.get('doctor_id')
+        datetime_str = data.get('appointment_datetime') # Expected: YYYY-MM-DDTHH:MM
+        
+        if not doctor_id or not datetime_str:
+            return {"message": "Doctor and Date/Time are required"}, 400
+
+        try:
+            # Convert string from frontend into a Python datetime object
+            app_dt = datetime.fromisoformat(datetime_str)
+            
+            new_appointment = Appointment(
+                patient_id=current_user.patient.id, # Securely tied to the logged-in user
+                doctor_id=doctor_id,
+                appointment_datetime=app_dt,
+                status="Booked"
+            )
+            db.session.add(new_appointment)
+            db.session.commit()
+            return {"message": "Appointment booked successfully!"}, 201
+            
+        except ValueError:
+            return {"message": "Invalid date format."}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+
+
+#--------------------------------------------------        
+# 8. DOCTOR AVAILABILITY API 
+#---------------------------------------------------
+class DocAvailabilityAPI(Resource):
+    @auth_required("token")
+    def get(self):   #future available slots
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return{"message": "Unauthorized"}, 403 
+
+        now = datetime.utcnow()
+        slots = DocAvailability.query.filter(
+            and_(
+                DocAvailability.doctor_id == current_user.doctor.id, 
+                DocAvailability.start_time >= now 
+            )
+        ).order_by(DocAvailability.start_time.asc()).all()
+
+        return [slot.to_dict() for slot in slots], 200 
+
+    #CREATE new available slot 
+    @auth_required("token")
+    def post(self):
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403 
+
+        data = request.get_json()
+        start_str = data.get('start_time')
+        end_str = data.get('end_time')
+
+        if not start_str or not end_str:
+            return {"message": "Start and End times are required"}, 400
+
+        try:
+            start_dt = datetime.fromisoformat(start_str)
+            end_dt = datetime.fromisoformat(end_str) 
+            #checking if end time must be after start time :- 
+            if end_dt<=start_dt:
+                return{"message":"End time must be after start time."}, 400
+            #preventing overlapping slots 
+            overlapping = DocAvailability.query.filter(
+                DocAvailability.doctor_id == current_user.doctor.id,
+                DocAvailability.start_time < end_dt,
+                DocAvailability.end_time > start_dt
+            ).first() 
+            if overlapping:
+                return{"message":"This slot overlaps with an existing slot"}, 409 
+            
+            new_slot=DocAvailability(
+                doctor_id=current_user.doctor.id,
+                start_time=start_dt,
+                end_time=end_dt,
+                is_booked=False
+            )
+
+            db.session.add(new_slot)
+            db.session.commit()
+            return {"message": "Availability added successfully!"}, 201 
+
+        except ValueError:
+            return{"message": "Invalid date format."}, 400 
+        except Exception as e:
+            db.session.rollback()
+            return {'message': str(e)}, 500 
+
+    #deleting slot
+    @auth_required("token")
+    def delete(self, slot_id):
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403 
+        
+        slot = DocAvailability.query.get(slot_id)
+        if not slot or slot.doctor_id != current_user.doctor.id:
+            return {"message": "Slot not found or unauthorized."}, 404 
+        
+        #can't del a slot if its already booked 
+        if slot.is_booked:
+            return {"message": "Cannot delete a slot that is already booked by a patient."}, 400 
+
+        try : 
+            db.session.delete(slot)
+            db.session.commit() 
+            return {"message": "Slot removed."}, 200 
+        except Exception as e:
+            db.session.rollback() 
+            return {"message":str(e)}, 500 

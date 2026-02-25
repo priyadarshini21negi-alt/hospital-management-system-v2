@@ -4,6 +4,7 @@ import LoginView from '../views/UserLogin.vue'
 import AdminDashboard from '../views/AdminDashboard.vue' 
 import PatientDashboard from '../views/patients/PatientDashboard.vue'
 import PatientRegister from '../views/patients/PatientRegistration.vue'
+import DoctorDashboard from '../views/doctors/DoctorDashboard.vue'
 
 
 const routes = [
@@ -28,6 +29,10 @@ const routes = [
     path : '/patient-dashboard', name:'PatientDashboard',component:PatientDashboard,
     meta : {requiresAuth:true, role:'patient'}
   },
+  {
+    path: '/doctor-dashboard', name: 'DoctorDashboard', component: DoctorDashboard,
+    meta: { requiresAuth: true, role: 'doctor' }
+  }
 
 
 ]
