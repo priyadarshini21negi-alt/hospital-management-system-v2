@@ -94,7 +94,7 @@ class Patient(db.Model):
 
     # Relationships
     user = db.relationship('User', back_populates='patient')
-    appointments = db.relationship('Appointment', back_populates='patient') 
+    appointments = db.relationship('Appointment', back_populates='patient', cascade="all, delete") 
 
     def to_dict(self):
         return {
@@ -119,7 +119,7 @@ class Appointment(db.Model):
     #relationships
     doctor = db.relationship('Doctor', back_populates='appointments')
     patient = db.relationship('Patient', back_populates='appointments')
-    treatment=db.relationship('Treatment', back_populates='appointment', uselist=False)
+    treatment=db.relationship('Treatment', back_populates='appointment', uselist=False, cascade="all, delete")
 
     def to_dict(self):
         return {

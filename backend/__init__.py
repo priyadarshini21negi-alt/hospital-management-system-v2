@@ -25,7 +25,8 @@ def create_app():
 
     # API
     
-    from .api import DoctorAPI, PatientRegister, UserResource, PatientAPI, AdminAppointmentAPI, AdminStatsAPI, DoctorAppointmentsAPI, PatientAppointmentsAPI, DocAvailabilityAPI 
+    from .api import DoctorAPI, PatientRegister, UserResource, PatientAPI, AdminAppointmentAPI, AdminStatsAPI, DoctorAppointmentsAPI, PatientAppointmentsAPI, DocAvailabilityAPI, PatientProfileAPI 
+    from .api import DoctorPublicSlotsAPI
     
     api.add_resource(DoctorAPI,
                      '/api/doctors',
@@ -40,7 +41,7 @@ def create_app():
                     )
     api.add_resource(AdminStatsAPI, '/api/admin/stats')
 
-    # 2. Add the Patient mapping here!
+    # PATIENTS :- 
     api.add_resource(PatientAPI,
                      '/api/patients',
                      '/api/patients/<int:patient_id>'
@@ -51,6 +52,10 @@ def create_app():
                     )
     
     api.add_resource(PatientAppointmentsAPI, '/api/patient/appointments')
+
+    api.add_resource(PatientProfileAPI, '/api/patient/profile')
+
+    api.add_resource(DoctorPublicSlotsAPI, '/api/doctors/<int:doctor_id>/slots')
 
     #doctors 
     api.add_resource(DoctorAppointmentsAPI, '/api/doctor/appointments')

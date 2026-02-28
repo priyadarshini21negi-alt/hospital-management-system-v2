@@ -390,6 +390,8 @@ class DoctorAppointmentsAPI(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500
+        
+
 
 #--------------------------------------------------        
 # 7. PATIENT APPOINTMENT API 
@@ -423,7 +425,16 @@ class PatientAppointmentsAPI(Resource):
         try:
             # Convert string from frontend into a Python datetime object
             app_dt = datetime.fromisoformat(datetime_str)
+            slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
             
+            if not slot:
+                return {"message": "This time slot does not exist."}, 404 
+            if slot.is_booked:
+                return {"message": "This slot is already booked!"}, 409 
+            slot.is_booked = True #marking slots as booked 
+
+
+
             new_appointment = Appointment(
                 patient_id=current_user.patient.id, # Securely tied to the logged-in user
                 doctor_id=doctor_id,
@@ -439,6 +450,88 @@ class PatientAppointmentsAPI(Resource):
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500
+        
+
+#--------------------------------------------------        
+# 7. AVAILABLE SLOTS FOR PATIENT.
+#----------------------------------------------------
+class DoctorPublicSlotsAPI(Resource):
+    @auth_required("token")
+    def get(self, doctor_id): 
+        now = datetime.utcnow() 
+        slots = DocAvailability.query.filter(
+            and_(
+                DocAvailability.doctor_id==doctor_id,
+                DocAvailability.start_time >= now,
+                DocAvailability.is_booked == False  #to only show unbooked slots
+            )
+        ).order_by(DocAvailability.start_time.asc()).all()
+
+
+
+#--------------------------------------------------        
+# 9. PATIENT UPDATE PROFILE API 
+#---------------------------------------------------
+class PatientProfileAPI(Resource):
+    @auth_required("token")
+    def get(self):
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized"}, 403
+
+        patient = current_user.patient 
+        return {
+            "name": patient.name,
+            "number": patient.number,
+            "email": current_user.email
+        }, 200 
+
+    @auth_required("token")
+    def put(self):
+        # Update logged-in patient's info
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized"}, 403
+
+        data = request.get_json()
+        patient = current_user.patient
+        
+        # Update fields if they were provided
+        if 'name' in data:
+            patient.name = data['name']
+        if 'number' in data:
+            patient.number = data['number']
+            
+        try:
+            db.session.commit()
+            return {"message": "Profile updated successfully"}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #--------------------------------------------------        

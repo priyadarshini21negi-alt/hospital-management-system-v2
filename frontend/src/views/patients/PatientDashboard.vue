@@ -4,10 +4,14 @@
       <h2 class="fw-bolder text-success tracking-tight">
         <i class="bi bi-person-heart me-2 text-primary"></i>Patient Portal
       </h2>
+      <button class="btn btn-outline-primary px-4 fw-semibold shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+          <i class="bi bi-pencil-square me-1"></i> Edit Profile
+        </button>
       <button @click="logoutAccount" class="btn btn-outline-danger px-4 fw-semibold shadow-sm rounded-pill">
         Sign Out
       </button>
     </div>
+    
 
     <div class="row gy-4">
       <div class="col-lg-5">
@@ -23,7 +27,7 @@
                 <select class="form-select border-success-subtle" v-model="bookingForm.doctor_id" @change="loadAvailableSlots" required>
                   <option value="" disabled>Choose your doctor...</option>
                   <option v-for="doc in availableDoctors" :key="doc.id" :value="doc.id">
-                    Dr. {{ doc.name }} ({{ doc.department_name }})
+                     {{ doc.name }} ({{ doc.department_name }})
                   </option>
                 </select>
               </div>
@@ -93,6 +97,33 @@
 
     </div>
   </div>
+  <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title fw-bold"><i class="bi bi-person-lines-fill me-2"></i>Edit My Profile</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="closeProfileModal"></button>
+          </div>
+          <div class="modal-body p-4">
+            <form @submit.prevent="updateProfile">
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">Full Name</label>
+                <input type="text" class="form-control" v-model="patientProfile.name" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">Phone Number</label>
+                <input type="text" class="form-control" v-model="patientProfile.number" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold text-secondary small">Email (Read-Only)</label>
+                <input type="email" class="form-control bg-light" v-model="patientProfile.email" disabled>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 fw-bold mt-2">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
 </template>
 
 <script>
@@ -105,7 +136,13 @@ export default {
       myAppointments: [],
       bookingForm: {
         doctor_id: '',
-        slot_id: '' // We send slot_id to the backend now, NOT a random datetime
+        slot_id: '' 
+      },
+      
+      patientProfile: {
+        name: '',
+        number: '',
+        email: ''
       }
     }
   },
@@ -141,16 +178,15 @@ export default {
       }
     },
 
-    // Triggered when the user selects a doctor in the first dropdown
     async loadAvailableSlots() {
-      this.bookingForm.slot_id = ''; // Reset slot choice
+      this.bookingForm.slot_id = ''; 
       this.openSlots = []; 
       
       if (!this.bookingForm.doctor_id) return;
 
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`http://127.0.0.1:5000/api/doctor/${this.bookingForm.doctor_id}/slots`, {
+        const response = await fetch(`http://127.0.0.1:5000/api/doctors/${this.bookingForm.doctor_id}/slots`, {
           headers: { 'Authentication-Token': token }
         });
         const data = await response.json();
@@ -163,7 +199,13 @@ export default {
     async submitBooking() {
       try {
         const token = localStorage.getItem('auth_token');
-        const payload = { slot_id: this.bookingForm.slot_id };
+        const selectedSlot = this.openSlots.find(slot => slot.id === this.bookingForm.slot_id);
+        if (!selectedSlot) return alert("Please select a valid time slot.");
+        
+        const payload = { 
+          doctor_id: this.bookingForm.doctor_id,
+          appointment_datetime: selectedSlot.start
+         };
 
         const response = await fetch('http://127.0.0.1:5000/api/patient/appointments', {
           method: 'POST',
@@ -178,7 +220,7 @@ export default {
           alert("Appointment successfully secured!");
           this.bookingForm = { doctor_id: '', slot_id: '' }; 
           this.openSlots = []; 
-          this.fetchAppointmentHistory(); // Instantly update the UI
+          this.fetchAppointmentHistory(); 
         } else {
           const errorData = await response.json();
           alert(errorData.message);
@@ -186,23 +228,54 @@ export default {
       } catch (err) {
         console.error("Booking error:", err);
       }
+    },
+
+    // FIX 2: Added the methods to fetch and update the profile
+    async loadProfile() {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://127.0.0.1:5000/api/patient/profile', {
+          headers: { 'Authentication-Token': token }
+        });
+        if (response.ok) {
+          this.patientProfile = await response.json();
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
+      }
+    },
+
+    async updateProfile() {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://127.0.0.1:5000/api/patient/profile', {
+          method: 'PUT',
+          headers: { 
+            'Authentication-Token': token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: this.patientProfile.name,
+            number: this.patientProfile.number
+          })
+        });
+
+        if (response.ok) {
+          alert("Profile updated successfully!");
+          document.getElementById('closeProfileModal').click();
+        } else {
+          const errorData = await response.json();
+          alert("Error: " + errorData.message);
+        }
+      } catch (err) {
+        console.error("Error updating profile:", err);
+      }
     }
   },
   mounted() {
     this.fetchDoctorList();
     this.fetchAppointmentHistory();
+    this.loadProfile(); // FIX 3: Load the profile when dashboard opens
   }
 }
 </script>
-
-<style scoped>
-.tracking-tight { letter-spacing: -0.02em; }
-.hover-bg { transition: background-color 0.2s ease; }
-.hover-bg:hover { background-color: #f8f9fa; }
-
-/* Custom scrollbar */
-.card-body::-webkit-scrollbar { width: 6px; }
-.card-body::-webkit-scrollbar-track { background: #f1f1f1; }
-.card-body::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-.card-body::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-</style>
