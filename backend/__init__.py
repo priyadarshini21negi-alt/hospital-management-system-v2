@@ -26,7 +26,7 @@ def create_app():
     # API
     
     from .api import DoctorAPI, PatientRegister, UserResource, PatientAPI, AdminAppointmentAPI, AdminStatsAPI, DoctorAppointmentsAPI, PatientAppointmentsAPI, DocAvailabilityAPI, PatientProfileAPI 
-    from .api import DoctorPublicSlotsAPI
+    from .api import DoctorPublicSlotsAPI, DoctorPatientHistoryAPI
     
     api.add_resource(DoctorAPI,
                      '/api/doctors',
@@ -51,18 +51,25 @@ def create_app():
                      '/api/admin/appointments/<int:appointment_id>'
                     )
     
-    api.add_resource(PatientAppointmentsAPI, '/api/patient/appointments')
+    api.add_resource(PatientAppointmentsAPI, '/api/patient/appointments',
+                    '/api/patient/appointments',
+                    '/api/patient/appointments/<int:appointment_id>' )
+    
 
     api.add_resource(PatientProfileAPI, '/api/patient/profile')
 
     api.add_resource(DoctorPublicSlotsAPI, '/api/doctors/<int:doctor_id>/slots')
 
     #doctors 
-    api.add_resource(DoctorAppointmentsAPI, '/api/doctor/appointments')
+    api.add_resource(DoctorAppointmentsAPI, '/api/doctor/appointments',
+                     '/api/doctor/appointments',
+                     '/api/doctor/appointments/<int:appointment_id>')
 
     api.add_resource(DocAvailabilityAPI, 
                  '/api/doctor/availability', 
                  '/api/doctor/availability/<int:slot_id>')
+    
+    api.add_resource(DoctorPatientHistoryAPI, '/api/doctor/patient/<int:patient_id>/history')
 
     # DB tables
     with app.app_context():

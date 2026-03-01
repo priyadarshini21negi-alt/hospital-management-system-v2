@@ -15,7 +15,6 @@
         <div class="d-flex align-items-center mb-3">
           <h4 class="mb-0 text-dark fw-bold">My Consultations</h4>
           <span class="badge bg-primary ms-3 rounded-pill">{{ consultations?.length || 0 }} Total</span>
-          
         </div>
 
         <div v-if="!consultations || consultations.length === 0" class="text-center text-muted py-5 bg-light rounded-4 border border-dashed">
@@ -40,17 +39,28 @@
                   </small>
                 </div>
                 
-                <h5 class="card-title fw-bolder text-dark mb-1">
-                  <i class="bi bi-person-circle me-2 text-primary"></i>{{ record.patient_name }}
-                </h5>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <h5 class="card-title fw-bolder text-dark mb-0">
+                    <i class="bi bi-person-circle me-2 text-primary"></i>{{ record.patient_name }}
+                  </h5>
+                  <button @click="viewPatientHistory(record.patient_id, record.patient_name)" class="btn btn-sm btn-outline-info rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#patientHistoryModal">
+                    <i class="bi bi-journal-medical me-1"></i> History
+                  </button>
+                </div>
+
                 <p class="text-muted small mb-3">
                   <i class="bi bi-clock me-2"></i>{{ new Date(record.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}
                 </p>
 
                 <div v-if="record.status === 'Booked'" class="mt-auto">
-                  <button v-if="activeTreatmentId !== record.id" @click="activeTreatmentId = record.id" class="btn btn-primary btn-sm w-100 fw-bold">
-                    Provide Treatment
-                  </button>
+                  <div v-if="activeTreatmentId !== record.id" class="d-flex gap-2">
+                    <button @click="activeTreatmentId = record.id" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">
+                      Provide Treatment
+                    </button>
+                    <button @click="cancelAppointment(record.id)" class="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm">
+                      Cancel Visit
+                    </button>
+                  </div>
                   
                   <form v-if="activeTreatmentId === record.id" @submit.prevent="finalizeTreatment(record.id)" class="mt-3 bg-light p-3 rounded-3 border">
                     <div class="mb-2">
@@ -93,11 +103,11 @@
             <form @submit.prevent="submitNewAvailability">
               <div class="mb-3">
                 <label class="form-label small fw-bold text-dark">Shift Start</label>
-                <input type="datetime-local" class="form-control" v-model="availabilityForm.start" required>
+                <input type="datetime-local" class="form-control" v-model="availabilityForm.start" :min="getMinDate()" :max="getMaxDate()" required>
               </div>
               <div class="mb-3">
                 <label class="form-label small fw-bold text-dark">Shift End</label>
-                <input type="datetime-local" class="form-control" v-model="availabilityForm.end" required>
+                <input type="datetime-local" class="form-control" v-model="availabilityForm.end" :min="getMinDate()" :max="getMaxDate()" required>
               </div>
               <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Confirm Availability</button>
             </form>
@@ -123,16 +133,48 @@
               </div>
               <div>
                 <span v-if="slot.is_booked" class="badge bg-success shadow-sm"><i class="bi bi-check-circle me-1"></i>Booked</span>
-                <button v-else @click="removeSlot(slot.id)" class="btn btn-sm btn-outline-danger border-0" title="Remove Slot">
-                  <i class="bi bi-trash3-fill"></i>
+                <button v-else @click="removeSlot(slot.id)" class="btn btn-sm btn-outline-danger shadow-sm fw-bold">
+                  Delete Slot
                 </button>
               </div>
             </li>
           </ul>
         </div>
-
       </div>
 
+    </div>
+  </div>
+
+  <div class="modal fade" id="patientHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-file-medical me-2"></i>Medical History: {{ selectedPatientName }}</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 bg-light">
+          
+          <div v-if="!patientHistory || patientHistory.length === 0" class="text-center py-4 text-muted">
+            <i class="bi bi-folder2-open fs-1 opacity-50"></i>
+            <p class="mt-2 fw-medium">No prior medical history found for this patient.</p>
+          </div>
+
+          <ul v-else class="list-group list-group-flush rounded-3 shadow-sm">
+            <li class="list-group-item p-3 mb-2 border-0 rounded-3" v-for="visit in patientHistory" :key="visit.id">
+              <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                <span class="fw-bold text-dark"><i class="bi bi-h-square text-danger me-2"></i>Treated by: {{ visit.doctor_name }}</span>
+                <small class="text-muted fw-bold">{{ new Date(visit.date).toLocaleDateString() }}</small>
+              </div>
+              <div v-if="visit.treatment">
+                <p class="mb-1 small"><strong class="text-info">Diagnosis:</strong> {{ visit.treatment.diagnosis }}</p>
+                <p class="mb-1 small"><strong class="text-info">Prescription:</strong> {{ visit.treatment.prescription }}</p>
+                <p class="mb-0 small text-muted" v-if="visit.treatment.notes"><em>Notes: {{ visit.treatment.notes }}</em></p>
+              </div>
+            </li>
+          </ul>
+
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -153,10 +195,24 @@ export default {
       availabilityForm: {
         start: '',
         end: ''
-      }
+      },
+      // FIX: Added data properties for history modal
+      patientHistory: [],
+      selectedPatientName: ''
     }
   },
   methods: {
+    getMinDate() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      return now.toISOString().slice(0, 16);
+    },
+    getMaxDate() {
+      const limit = new Date();
+      limit.setDate(limit.getDate() + 7);
+      limit.setMinutes(limit.getMinutes() - limit.getTimezoneOffset());
+      return limit.toISOString().slice(0, 16);
+    },
     logoutAccount() {
       localStorage.removeItem('auth_token');
       this.$router.push('/login');
@@ -196,11 +252,7 @@ export default {
         
         const data = await response.json();
         
-        // VIVA DEFENSE: This log proves exactly what Flask is sending to Vue
-        console.log("📥 Flask Schedule Response:", data);
-        
         if (response.ok) {
-          // Robust extraction: Checks if data is an array, or finds the array inside a dictionary
           if (Array.isArray(data)) {
             this.openSlots = data;
           } else if (data && typeof data === 'object') {
@@ -211,11 +263,62 @@ export default {
           }
         } else {
           this.openSlots = [];
-          console.error("Failed to fetch schedule:", data.message);
         }
       } catch (err) {
         console.error("Error fetching schedule:", err);
         this.openSlots = [];
+      }
+    },
+    async cancelAppointment(appointmentId) {
+      if (!confirm("Are you sure you want to cancel this appointment? The patient will be notified.")) return;
+
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`http://127.0.0.1:5000/api/doctor/appointments/${appointmentId}`, {
+          method: 'PUT',
+          headers: { 
+            'Authentication-Token': token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: 'Cancelled' })
+        });
+
+        if (response.ok) {
+          alert("Appointment cancelled successfully.");
+          this.loadConsultations(); 
+          this.loadSchedule();     
+        } else {
+          const errorData = await response.json();
+          alert("Error: " + errorData.message);
+        }
+      } catch (err) {
+        console.error("Error cancelling appointment:", err);
+      }
+    },
+    
+    async viewPatientHistory(patientId, patientName) {
+      if (!patientId) {
+        console.error("No patient ID provided");
+        return;
+      }
+      
+      this.selectedPatientName = patientName;
+      this.patientHistory = []; 
+
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`http://127.0.0.1:5000/api/doctor/patient/${patientId}/history`, {
+          headers: { 'Authentication-Token': token }
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+          this.patientHistory = data;
+        } else {
+          console.error("Failed to load history:", data.message);
+        }
+      } catch (err) {
+        console.error("Error fetching patient history:", err);
       }
     },
 
@@ -223,13 +326,8 @@ export default {
     async submitNewAvailability() {
       try {
         const token = localStorage.getItem('auth_token');
-        
-        // VIVA DEFENSE: Formatting the HTML datetime string to standard SQL/Python datetime
-        // Replaces "2026-02-25T14:30" with "2026-02-25 14:30:00"
         const formattedStart = this.availabilityForm.start.replace('T', ' ') + ':00';
         const formattedEnd = this.availabilityForm.end.replace('T', ' ') + ':00';
-
-        console.log("📤 Sending Slot Payload:", { start_time: formattedStart, end_time: formattedEnd });
 
         const response = await fetch('http://127.0.0.1:5000/api/doctor/availability', {
           method: 'POST',
@@ -245,7 +343,7 @@ export default {
 
         if (response.ok) {
           this.availabilityForm = { start: '', end: '' };
-          this.loadSchedule(); // Refresh the list
+          this.loadSchedule(); 
         } else {
           const errorData = await response.json();
           alert("Error: " + (errorData.message || "Could not save slot"));

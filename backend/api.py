@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import current_app, request, jsonify
 from flask_restful import Resource, Api
 from flask_security import auth_required, current_user, hash_password
@@ -391,7 +391,40 @@ class DoctorAppointmentsAPI(Resource):
             db.session.rollback()
             return {"message": str(e)}, 500
         
+        # D doc cancelling appointment 
+        @auth_required("token")
+        def put(self, appointment_id=None):
+            if 'doctor' not in [role.name for role in current_user.roles]:
+                return {"message": "Unauthorized."}, 403
+                
+            if not appointment_id:
+                return {"message": "Appointment ID required"}, 400
 
+            appointment = Appointment.query.get(appointment_id)
+            
+            #ensuring appointment exists and belongs to this doc 
+            if not appointment or appointment.doctor_id != current_user.doctor.id:
+                return {"message": "Appointment not found or unauthorized."}, 404 
+            data = request.get_json()
+            if data.get('status') == 'Cancelled':
+                if appointment.status == 'Completed':
+                    return {"message": "Cannot cancel a completed consultation."}, 400
+                    
+                appointment.status = "Cancelled"
+                
+                slot=DocAvailability.query.filter_by(
+                    doctor_id=appointment.doctor_id, 
+                    start_time=appointment.appointment_datetime
+                ).first() 
+                if slot:
+                    slot.is_booked = False 
+                try:
+                    db.session.commit()
+                    return {"message": "Appointment cancelled successfully."}, 200
+                except Exception as e:
+                    db.session.rollback()
+                    return {"message": str(e)}, 500
+            return {"message": "Invalid status update"}, 400
 
 #--------------------------------------------------        
 # 7. PATIENT APPOINTMENT API 
@@ -451,6 +484,36 @@ class PatientAppointmentsAPI(Resource):
             db.session.rollback()
             return {"message": str(e)}, 500
         
+    # D : Patient cancelling appointment 
+    @auth_required("token")
+    def delete(self, appointment_id=None):
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403 
+        if not appointment_id:
+            return {"message": "Appointment ID required"}, 400 
+        
+        #finding appointment and verifying ownership 
+        appointment = Appointment.query.get(appointment_id)
+        if not appointment or appointment.patient_id != current_user.patient.id:
+            return {"message": "Appointment not found or unauthorized."}, 404 
+        #preventing cancelling past/completed appointment 
+        if appointment.status=="Completed":
+            return {"message": "Cannot cancel a completed consultation."}, 400 
+        
+        try: 
+            #freeing up the doc's slot 
+            slot=DocAvailability.query.filter_by(
+                doctor_id=appointment.doctor_id,
+                start_time=appointment.appointment_datetime
+            ).first() 
+
+            if slot:
+                slot.is_booked = False 
+                db.session.delete(appointment)
+                db.session.commit()
+                return {"message": "Appointment cancelled successfully."}, 200
+        except Exception as e:
+            db.session.rollback()
 
 #--------------------------------------------------        
 # 7. AVAILABLE SLOTS FOR PATIENT.
@@ -466,6 +529,7 @@ class DoctorPublicSlotsAPI(Resource):
                 DocAvailability.is_booked == False  #to only show unbooked slots
             )
         ).order_by(DocAvailability.start_time.asc()).all()
+        return [slot.to_dict() for slot in slots], 200
 
 
 
@@ -511,29 +575,6 @@ class PatientProfileAPI(Resource):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #--------------------------------------------------        
 # 8. DOCTOR AVAILABILITY API 
 #---------------------------------------------------
@@ -553,35 +594,46 @@ class DocAvailabilityAPI(Resource):
 
         return [slot.to_dict() for slot in slots], 200 
 
-    #CREATE new available slot 
+
     @auth_required("token")
     def post(self):
+
         if 'doctor' not in [role.name for role in current_user.roles]:
             return {"message": "Unauthorized."}, 403 
 
-        data = request.get_json()
-        start_str = data.get('start_time')
-        end_str = data.get('end_time')
-
-        if not start_str or not end_str:
-            return {"message": "Start and End times are required"}, 400
-
         try:
-            start_dt = datetime.fromisoformat(start_str)
-            end_dt = datetime.fromisoformat(end_str) 
-            #checking if end time must be after start time :- 
-            if end_dt<=start_dt:
-                return{"message":"End time must be after start time."}, 400
-            #preventing overlapping slots 
+            data = request.get_json()
+
+            start_dt = datetime.fromisoformat(data.get('start_time'))
+            end_dt = datetime.fromisoformat(data.get('end_time'))
+
+            now = datetime.utcnow()
+            limit = now + timedelta(days=7)
+
+            # Past Check
+            if start_dt < now:
+                return {"message": "Cannot schedule slots in the past."}, 400
+
+            # 7 Day Limit
+            if start_dt > limit:
+                return {"message": "Availability can only be set for next 7 days."}, 400
+
+            # End > Start
+            if end_dt <= start_dt:
+                return {"message": "End time must be after start time."}, 400
+
+            # Overlap Check
             overlapping = DocAvailability.query.filter(
                 DocAvailability.doctor_id == current_user.doctor.id,
                 DocAvailability.start_time < end_dt,
                 DocAvailability.end_time > start_dt
-            ).first() 
+            ).first()
+
             if overlapping:
-                return{"message":"This slot overlaps with an existing slot"}, 409 
-            
-            new_slot=DocAvailability(
+                return {"message": "This slot overlaps with an existing slot."}, 409
+
+            # Create Slot
+            new_slot = DocAvailability(
                 doctor_id=current_user.doctor.id,
                 start_time=start_dt,
                 end_time=end_dt,
@@ -590,32 +642,61 @@ class DocAvailabilityAPI(Resource):
 
             db.session.add(new_slot)
             db.session.commit()
-            return {"message": "Availability added successfully!"}, 201 
+
+            return {"message": "Availability added successfully!"}, 201
 
         except ValueError:
-            return{"message": "Invalid date format."}, 400 
+            return {"message": "Invalid date format."}, 400
+
         except Exception as e:
             db.session.rollback()
-            return {'message': str(e)}, 500 
+            return {"message": str(e)}, 500
 
-    #deleting slot
+
+    # ---------------------------------------
+    # DELETE SLOT
+    # ---------------------------------------
     @auth_required("token")
     def delete(self, slot_id):
+
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403 
+
+        slot = DocAvailability.query.get(slot_id)
+
+        if not slot or slot.doctor_id != current_user.doctor.id:
+            return {"message": "Slot not found or unauthorized."}, 404 
+
+        if slot.is_booked:
+            return {"message": "Cannot delete a booked slot."}, 400 
+
+        try:
+            db.session.delete(slot)
+            db.session.commit()
+            return {"message": "Slot removed."}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+        
+#--------------------------------------------------        
+# 10. DOCTOR VIEWING PATIENT HISTORY API
+#---------------------------------------------------
+class DoctorPatientHistoryAPI(Resource):
+    @auth_required("token")
+    def get(self, patient_id):
         if 'doctor' not in [role.name for role in current_user.roles]:
             return {"message": "Unauthorized."}, 403 
         
-        slot = DocAvailability.query.get(slot_id)
-        if not slot or slot.doctor_id != current_user.doctor.id:
-            return {"message": "Slot not found or unauthorized."}, 404 
-        
-        #can't del a slot if its already booked 
-        if slot.is_booked:
-            return {"message": "Cannot delete a slot that is already booked by a patient."}, 400 
+        history = Appointment.query.filter_by(
+            patient_id=patient_id,
+            status="Completed"
+        ).order_by(Appointment.appointment_datetime.desc()).all() 
 
-        try : 
-            db.session.delete(slot)
-            db.session.commit() 
-            return {"message": "Slot removed."}, 200 
-        except Exception as e:
-            db.session.rollback() 
-            return {"message":str(e)}, 500 
+        result=[]
+        for app in history:
+            app_data=app.to_dict()
+            if app.treatment:
+                app_data['treatment'] = app.treatment.to_dict()
+            result.append(app_data)
+        return result, 200

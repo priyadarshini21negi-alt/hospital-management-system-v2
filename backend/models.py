@@ -124,6 +124,8 @@ class Appointment(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "doctor_id": self.doctor_id,
+            "patient_id": self.patient_id,
             "doctor_name": self.doctor.name,
             "patient_name": self.patient.name,
             "date": self.appointment_datetime.isoformat(),

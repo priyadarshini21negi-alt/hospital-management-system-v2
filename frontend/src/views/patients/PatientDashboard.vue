@@ -68,6 +68,7 @@
             
             <ul v-else class="list-group list-group-flush">
               <li class="list-group-item p-4 hover-bg" v-for="app in myAppointments" :key="app.id">
+                
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
                     <h6 class="fw-bolder text-dark mb-1">
@@ -84,12 +85,20 @@
                   </span>
                 </div>
                 
+                <div v-if="app.status === 'Booked'" class="mt-3 text-end border-top pt-2">
+                  <button @click="cancelAppointment(app.id)" class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3">
+                    <i class="bi bi-x-circle me-1"></i> Cancel Visit
+                  </button>
+                </div>
+                
                 <div v-if="app.status === 'Completed' && app.treatment" class="mt-3 bg-light p-3 rounded-3 border border-secondary border-opacity-25">
                   <p class="mb-1 small"><strong class="text-primary">Diagnosis:</strong> {{ app.treatment.diagnosis }}</p>
                   <p class="mb-1 small"><strong class="text-primary">Prescription:</strong> {{ app.treatment.prescription }}</p>
                   <p class="mb-0 small text-muted mt-2 border-top pt-1" v-if="app.treatment.notes"><em>Note: {{ app.treatment.notes }}</em></p>
                 </div>
+
               </li>
+              
             </ul>
           </div>
         </div>
@@ -175,6 +184,32 @@ export default {
         this.myAppointments = Array.isArray(data) ? data : [];
       } catch (err) {
         console.error("Error fetching history:", err);
+      }
+    },
+    async cancelAppointment(appointmentId) {
+      if (!confirm("Are you sure you want to cancel this appointment?")) return;
+
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`http://127.0.0.1:5000/api/patient/appointments/${appointmentId}`, {
+          method: 'DELETE',
+          headers: { 'Authentication-Token': token }
+        });
+
+        if (response.ok) {
+          alert("Appointment cancelled.");
+          this.fetchAppointmentHistory(); // Refresh the list
+          
+          // If the patient is currently viewing this doctor's slots, refresh the dropdown too
+          if (this.bookingForm.doctor_id) {
+            this.loadAvailableSlots(); 
+          }
+        } else {
+          const errorData = await response.json();
+          alert("Error: " + errorData.message);
+        }
+      } catch (err) {
+        console.error("Cancel error:", err);
       }
     },
 
