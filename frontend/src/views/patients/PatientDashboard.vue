@@ -1,8 +1,8 @@
 <template>
   <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2 border-success-subtle">
-      <h2 class="fw-bolder text-success tracking-tight">
-        <i class="bi bi-person-heart me-2 text-primary"></i>Patient Portal
+      <h2 class="fw-bolder text-success tracking-tight text-capitalize">
+        <i class="bi bi-person-heart me-2 text-primary"></i>Welcome, {{ patientProfile.name || 'Patient' }}
       </h2>
       <button class="btn btn-outline-primary px-4 fw-semibold shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#editProfileModal">
           <i class="bi bi-pencil-square me-1"></i> Edit Profile

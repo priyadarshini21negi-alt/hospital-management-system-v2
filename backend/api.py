@@ -149,6 +149,14 @@ class DoctorAPI(Resource):
         if 'career_start_year' in data:
             doctor.career_start_year = data['career_start_year'] 
 
+        #updating USER email 
+        if 'email' in data and data['email'] != doctor.user.email:
+            existing_user=User.query.filter_by(email=data['email']).first()
+            if existing_user:
+                return{"message" :"Email already in use"}, 409 
+        doctor.user.email = data["email"]
+        
+
         try:
             db.session.commit()
             return {"message": "Doctor updated successfully"}, 200

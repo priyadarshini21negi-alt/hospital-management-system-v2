@@ -1,6 +1,6 @@
 <template>
   <div class="container py-4">
-
+<!--HEADER-->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-semibold text-primary">
         <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
@@ -9,7 +9,7 @@
         Logout
       </button>
     </div>
-
+<!--NUMBER OF PATIENTS, DOCTORS AND APPOINTMENTS-->
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <div class="card bg-primary text-white shadow-sm border-0 h-100">
@@ -36,6 +36,10 @@
         </div>
       </div>
     </div>
+
+  <!----------------------------------------------------------->
+  <!--PATIENT TABLE-->
+  <!----------------------------------------------------------->
 
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-success text-white py-3">
@@ -74,6 +78,10 @@
         </table>
       </div>
     </div>
+
+  <!----------------------------------------------------------->
+  <!--DOCTOR TABLE-->
+  <!----------------------------------------------------------->
 
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
@@ -128,21 +136,36 @@
           </form>
         </div>
       </transition>
-
+<!---------------------------EDIT DOCTOR DETAILS----------------------------->
       <transition name="fade">
         <div v-if="editingDoctor" class="card-body bg-warning-subtle border-bottom">
           <h5 class="fw-semibold mb-3">Edit Doctor Profile</h5>
           <form @submit.prevent="submitEdit">
             <div class="row g-3">
-              <div class="col-md-4">
+              <!--editing doc's name-->
+              <div class="col-md-3">
                 <label class="form-label small text-muted">Name</label>
                 <input type="text" v-model="editForm.name" class="form-control" required>
               </div>
-              <div class="col-md-4">
-                <label class="form-label small text-muted">Department ID</label>
-                <input type="number" v-model="editForm.department_id" class="form-control" required>
+              <!--editing doc's username @healix.com -->
+              <div class="col-md-3">
+                <label class="form-label small text-muted">Email</label>
+                <div class="input-group">
+                  <input type="text" v-model="editForm.email" class="form-control" required>
+                  <span class="input-group-text bg-light text-muted">@healix.com</span>
+                </div>
               </div>
-              <div class="col-md-4">
+              <!--editing dept name-->
+              <div class="col-md-3">
+                <label class="form-label small text-muted">Department</label>
+                <select class="form-select" v-model="editForm.department_id" required> 
+                  <option v-for="(id, name) in deptMapping" :key="id" :value="id">
+                    {{ name }}
+                  </option>
+                </select>
+              </div>
+              <!--editing start year of doc-->
+              <div class="col-md-3">
                 <label class="form-label small text-muted">Start Year</label>
                 <input type="number" v-model="editForm.career_start_year" class="form-control">
               </div>
@@ -154,7 +177,7 @@
           </form>
         </div>
       </transition>
-
+<!--DISPLAY CARD OF ALL DOCS-->
       <div class="card-body">
         <div v-if="doctors.length === 0" class="text-center py-4 text-muted">
           <p>No doctors found</p>
@@ -177,6 +200,10 @@
         </table>
       </div>
     </div>
+
+  <!----------------------------------------------------------->
+  <!--APPOINTMENT TABLE-->
+  <!----------------------------------------------------------->
 
     <div class="card shadow-sm border-0">
       <div class="card-header bg-primary text-white py-3">
@@ -244,7 +271,7 @@ export default {
       selectedDeptName: '',
       newDoctor: { name: '', username: '', password: '', department_id: '', career_start_year: '' },
       editingDoctor: null,
-      editForm: { name: '', department_id: '', career_start_year: '' },
+      editForm: { name: '', email:'', department_id: '', career_start_year: '' },
       // Mappings
       deptMapping: {
         "Cardiology": 1, "Dermatology": 2, "Emergency Medicine": 3,
@@ -307,23 +334,53 @@ export default {
         this.showAddForm = false;
         this.fetchDoctors();
         this.fetchStats();
-      }
-    },
+        
+        // emptying the boxes when adding new doc 
+        this.newDoctor = { name: '', username: '', password: '', department_id: '', career_start_year: '' };
+        this.selectedDeptName = ''; 
 
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        const errMsg = errorData.message 
+                    || (errorData.response && errorData.response.errors ? errorData.response.errors[0] : null) 
+                    || JSON.stringify(errorData);
+                    
+        alert("Action Failed: " + errMsg);
+      }
+      
+    },
     startEdit(doc) {
       this.editingDoctor = doc.id;
-      this.editForm = { name: doc.name, department_id: doc.department_id, career_start_year: doc.career_start_year };
+      const emailPrefix = doc.email ? doc.email.split('@')[0] : '';
+
+      this.editForm = { 
+        name: doc.name, 
+        email: emailPrefix,
+        department_id: doc.department_id, 
+        career_start_year: doc.career_start_year };
     },
 
     async submitEdit() {
+      const payload = {
+        name: this.editForm.name,
+        email: `${this.editForm.email}@healix.com`, 
+        department_id: this.editForm.department_id,
+        career_start_year: this.editForm.career_start_year
+      };
+
       const res = await fetch(`http://127.0.0.1:5000/api/doctors/${this.editingDoctor}`, {
         method: 'PUT',
         headers: { 'Authentication-Token': localStorage.getItem('auth_token'), 'Content-Type': 'application/json' },
-        body: JSON.stringify(this.editForm)
+        body: JSON.stringify(payload)
       });
+      
       if (res.ok) {
         this.editingDoctor = null;
         this.fetchDoctors();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        const errMsg = errorData.message || (errorData.response?.errors?.[0]) || JSON.stringify(errorData);
+        alert("Action Failed: " + errMsg);
       }
     },
 
