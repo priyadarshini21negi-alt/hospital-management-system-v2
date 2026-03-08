@@ -1,14 +1,26 @@
 <template>
-  <router-view/>
+  <div id="app">
+    <NavBar />
+
+    <main>
+      <router-view/>
+    </main>
+  </div>
 </template>
 
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8f9fa; /* Light grey background for the whole app */
-  min-height: 100vh;
+<script>
+// 1. Ensure the path exactly matches your folder structure and capitalization!
+import NavBar from './components/NavBar.vue'; 
+
+export default {
+  name: 'App',
+  components: {
+    
+    NavBar 
+  }
 }
+</script>
+
+<style>
 
 </style>
