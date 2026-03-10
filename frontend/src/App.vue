@@ -9,7 +9,7 @@
 </template>
 
 <script>
-// 1. Ensure the path exactly matches your folder structure and capitalization!
+
 import NavBar from './components/NavBar.vue'; 
 
 export default {

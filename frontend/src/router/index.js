@@ -10,7 +10,7 @@ const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/login', name: 'login', component: LoginView },
   { 
-    // Notice this syntax? It's a great Viva talking point (Lazy Loading)
+    //lazy loading??
     path: '/about', name: 'about', component: () => import('../views/AboutView.vue') 
   },
   { 
@@ -31,7 +31,7 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
-  // 1. ADDED: Syncs Vue Router active states with Bootstrap's CSS
+  
   linkActiveClass: 'active',
   linkExactActiveClass: 'active'
 })
@@ -43,7 +43,7 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('auth_token');
   const userRole = localStorage.getItem('user_role');
 
-  // 2. ADDED: Prevent logged-in users from visiting Login or Register pages
+  
   if (token && (to.path === '/login' || to.path === '/register')) {
     if (userRole === 'admin') return next('/admin-dashboard');
     if (userRole === 'doctor') return next('/doctor-dashboard');
@@ -51,25 +51,24 @@ router.beforeEach((to, from, next) => {
     return next('/');
   }
 
-  // If the destination route requires authentication
   if (to.matched.some(record => record.meta.requiresAuth)) {
-    // If no token exists, kick them to the login page
+    
     if (!token) {
       console.warn("Access Denied: No Token Found");
       next({ path: '/login' });
     } 
-    // If token exists, check if they have the correct role
+  
     else if (to.meta.role && to.meta.role !== userRole) {
       console.warn("Access Denied: Unauthorized Role");
       alert("You do not have permission to view this page.");
       next({ path: '/' }); 
     } 
-    // If everything is good, let them through
+
     else {
       next(); 
     }
   } 
-  // If the route does NOT require auth, let them through
+ 
   else {
     next(); 
   }
