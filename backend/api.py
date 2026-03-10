@@ -4,7 +4,7 @@ from flask_restful import Resource, Api
 from flask_security import auth_required, current_user, hash_password
 from .models import db, User, Patient, Doctor, Department, Appointment, Treatment, DocAvailability
 from sqlalchemy import or_, and_ 
-
+from sqlalchemy.exc import IntegrityError
 
 #---------------------------------------------
 # 1. PATIENT REGISTRATION API (and admin managing patients)
@@ -399,40 +399,40 @@ class DoctorAppointmentsAPI(Resource):
             db.session.rollback()
             return {"message": str(e)}, 500
         
-        # D doc cancelling appointment 
-        @auth_required("token")
-        def put(self, appointment_id=None):
-            if 'doctor' not in [role.name for role in current_user.roles]:
-                return {"message": "Unauthorized."}, 403
-                
-            if not appointment_id:
-                return {"message": "Appointment ID required"}, 400
-
-            appointment = Appointment.query.get(appointment_id)
+    # D doc cancelling appointment 
+    @auth_required("token")
+    def put(self, appointment_id=None):
+        if 'doctor' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403
             
-            #ensuring appointment exists and belongs to this doc 
-            if not appointment or appointment.doctor_id != current_user.doctor.id:
-                return {"message": "Appointment not found or unauthorized."}, 404 
-            data = request.get_json()
-            if data.get('status') == 'Cancelled':
-                if appointment.status == 'Completed':
-                    return {"message": "Cannot cancel a completed consultation."}, 400
-                    
-                appointment.status = "Cancelled"
+        if not appointment_id:
+            return {"message": "Appointment ID required"}, 400
+
+        appointment = Appointment.query.get(appointment_id)
+        
+        #ensuring appointment exists and belongs to this doc 
+        if not appointment or appointment.doctor_id != current_user.doctor.id:
+            return {"message": "Appointment not found or unauthorized."}, 404 
+        data = request.get_json()
+        if data.get('status') == 'Cancelled':
+            if appointment.status == 'Completed':
+                return {"message": "Cannot cancel a completed consultation."}, 400
                 
-                slot=DocAvailability.query.filter_by(
-                    doctor_id=appointment.doctor_id, 
-                    start_time=appointment.appointment_datetime
-                ).first() 
-                if slot:
-                    slot.is_booked = False 
-                try:
-                    db.session.commit()
-                    return {"message": "Appointment cancelled successfully."}, 200
-                except Exception as e:
-                    db.session.rollback()
-                    return {"message": str(e)}, 500
-            return {"message": "Invalid status update"}, 400
+            appointment.status = "Cancelled"
+            
+            slot=DocAvailability.query.filter_by(
+                doctor_id=appointment.doctor_id, 
+                start_time=appointment.appointment_datetime
+            ).first() 
+            if slot:
+                slot.is_booked = False 
+            try:
+                db.session.commit()
+                return {"message": "Appointment cancelled successfully."}, 200
+            except Exception as e:
+                db.session.rollback()
+                return {"message": str(e)}, 500
+        return {"message": "Invalid status update"}, 400
 
 #--------------------------------------------------        
 # 7. PATIENT APPOINTMENT API 
@@ -464,7 +464,6 @@ class PatientAppointmentsAPI(Resource):
             return {"message": "Doctor and Date/Time are required"}, 400
 
         try:
-            # Convert string from frontend into a Python datetime object
             app_dt = datetime.fromisoformat(datetime_str)
             slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
             
@@ -472,12 +471,11 @@ class PatientAppointmentsAPI(Resource):
                 return {"message": "This time slot does not exist."}, 404 
             if slot.is_booked:
                 return {"message": "This slot is already booked!"}, 409 
+            
             slot.is_booked = True #marking slots as booked 
 
-
-
             new_appointment = Appointment(
-                patient_id=current_user.patient.id, # Securely tied to the logged-in user
+                patient_id=current_user.patient.id, 
                 doctor_id=doctor_id,
                 appointment_datetime=app_dt,
                 status="Booked"
@@ -485,6 +483,10 @@ class PatientAppointmentsAPI(Resource):
             db.session.add(new_appointment)
             db.session.commit()
             return {"message": "Appointment booked successfully!"}, 201
+            
+        except IntegrityError:
+            db.session.rollback()
+            return {"message": "Too slow! This slot was just booked by someone else."}, 409
             
         except ValueError:
             return {"message": "Invalid date format."}, 400

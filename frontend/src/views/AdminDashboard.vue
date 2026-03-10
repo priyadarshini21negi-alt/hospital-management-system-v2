@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="container py-4 mt-5 pt-4">
 <!--HEADER-->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="fw-semibold text-primary">
@@ -37,31 +37,27 @@
       </div>
     </div>
 
-  <!----------------------------------------------------------->
-  <!--PATIENT TABLE-->
-  <!----------------------------------------------------------->
 
-    <div class="card shadow-sm border-0 mb-4">
+<div class="row g-4 mb-4">
+  
+  <div class="col-lg-6 d-flex flex-column">
+    <div class="card shadow-sm border-0 flex-grow-1 mb-0">
       <div class="card-header bg-success text-white py-3">
         <h4 class="mb-0 fw-semibold"><i class="bi bi-people-fill me-2"></i>Manage Patients</h4>
       </div>
       <div class="card-body border-bottom bg-light">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="input-group shadow-sm">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input type="text" class="form-control" v-model="patientSearchQuery" @input="fetchPatients" placeholder="Search by Name or ID">
-              <button class="btn btn-outline-secondary" @click="patientSearchQuery='';fetchPatients()">Clear</button>
-            </div>
-          </div>
+        <div class="input-group shadow-sm">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" v-model="patientSearchQuery" @input="fetchPatients" placeholder="Search by Name or ID">
+          <button class="btn btn-outline-secondary" @click="patientSearchQuery='';fetchPatients()">Clear</button>
         </div>
       </div>
-      <div class="card-body">
+      <div class="card-body table-responsive">
         <div v-if="patients.length === 0" class="text-center py-4 text-muted">
           <i class="bi bi-folder-x fs-2"></i>
           <p>No patients found</p>
         </div>
-        <table v-else class="table table-hover align-middle">
+        <table v-else class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr><th>ID</th><th>Name</th><th>Contact</th><th class="text-end">Actions</th></tr>
           </thead>
@@ -78,12 +74,10 @@
         </table>
       </div>
     </div>
+  </div>
 
-  <!----------------------------------------------------------->
-  <!--DOCTOR TABLE-->
-  <!----------------------------------------------------------->
-
-    <div class="card shadow-sm border-0 mb-4">
+  <div class="col-lg-6 d-flex flex-column">
+    <div class="card shadow-sm border-0 flex-grow-1 mb-0">
       <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
         <h4 class="mb-0 fw-semibold"><i class="bi bi-person-badge-fill me-2"></i>Manage Doctors</h4>
         <button @click="showAddForm = !showAddForm; editingDoctor=null" class="btn btn-light btn-sm px-3 shadow-sm">
@@ -92,97 +86,91 @@
       </div>
 
       <div class="card-body border-bottom bg-light">
-        <div class="col-md-6">
-          <div class="input-group shadow-sm">
-            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-            <input type="text" class="form-control" v-model="searchQuery" @input="fetchDoctors" placeholder="Name or Specialization">
-            <button class="btn btn-outline-secondary" @click="searchQuery='';fetchDoctors()">Clear</button>
-          </div>
+        <div class="input-group shadow-sm">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" v-model="searchQuery" @input="fetchDoctors" placeholder="Name or Specialization">
+          <button class="btn btn-outline-secondary" @click="searchQuery='';fetchDoctors()">Clear</button>
         </div>
       </div>
 
       <transition name="fade">
         <div v-if="showAddForm" class="card-body bg-light border-bottom">
-          <h5 class="text-secondary mb-3 fw-semibold">Register New Doctor</h5>
-          <form @submit.prevent="addDoctor">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label small text-muted">Full Name</label>
-                <input type="text" v-model="newDoctor.name" class="form-control" placeholder="John Doe" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small text-muted">Username (@healix.com)</label>
-                <input type="text" v-model="newDoctor.username" class="form-control" placeholder="johndoe" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small text-muted">Password</label>
-                <input type="password" v-model="newDoctor.password" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small text-muted">Department</label>
-                <select class="form-select" v-model="selectedDeptName" @change="updateDeptId" required>
-                  <option disabled value="">Select Department</option>
-                  <option v-for="(id, name) in deptMapping" :key="id">{{ name }}</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small text-muted">Career Start Year</label>
-                <input type="number" v-model="newDoctor.career_start_year" class="form-control" placeholder="2015">
-              </div>
-              <div class="col-12 mt-3">
-                <button type="submit" class="btn btn-success px-4">Save Doctor</button>
-              </div>
-            </div>
-          </form>
+            <h5 class="text-secondary mb-3 fw-semibold">Register New Doctor</h5>
+            <form @submit.prevent="addDoctor">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Full Name</label>
+                        <input type="text" v-model="newDoctor.name" class="form-control" placeholder="John Doe" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Username (@healix.com)</label>
+                        <input type="text" v-model="newDoctor.username" class="form-control" placeholder="johndoe" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Password</label>
+                        <input type="password" v-model="newDoctor.password" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Department</label>
+                        <select class="form-select" v-model="selectedDeptName" @change="updateDeptId" required>
+                            <option disabled value="">Select Department</option>
+                            <option v-for="(id, name) in deptMapping" :key="id">{{ name }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Career Start Year</label>
+                        <input type="number" v-model="newDoctor.career_start_year" class="form-control" placeholder="2015">
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-success px-4">Save Doctor</button>
+                    </div>
+                </div>
+            </form>
         </div>
       </transition>
-<!---------------------------EDIT DOCTOR DETAILS----------------------------->
+
       <transition name="fade">
         <div v-if="editingDoctor" class="card-body bg-warning-subtle border-bottom">
-          <h5 class="fw-semibold mb-3">Edit Doctor Profile</h5>
-          <form @submit.prevent="submitEdit">
-            <div class="row g-3">
-              <!--editing doc's name-->
-              <div class="col-md-3">
-                <label class="form-label small text-muted">Name</label>
-                <input type="text" v-model="editForm.name" class="form-control" required>
-              </div>
-              <!--editing doc's username @healix.com -->
-              <div class="col-md-3">
-                <label class="form-label small text-muted">Email</label>
-                <div class="input-group">
-                  <input type="text" v-model="editForm.email" class="form-control" required>
-                  <span class="input-group-text bg-light text-muted">@healix.com</span>
+            <h5 class="fw-semibold mb-3">Edit Doctor Profile</h5>
+            <form @submit.prevent="submitEdit">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Name</label>
+                        <input type="text" v-model="editForm.name" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Email</label>
+                        <div class="input-group">
+                            <input type="text" v-model="editForm.email" class="form-control" required>
+                            <span class="input-group-text bg-light text-muted">@healix.com</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Department</label>
+                        <select class="form-select" v-model="editForm.department_id" required> 
+                            <option v-for="(id, name) in deptMapping" :key="id" :value="id">
+                                {{ name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Start Year</label>
+                        <input type="number" v-model="editForm.career_start_year" class="form-control">
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button class="btn btn-warning px-4 me-2 shadow-sm">Update</button>
+                        <button type="button" class="btn btn-outline-secondary px-4 shadow-sm" @click="editingDoctor=null">Cancel</button>
+                    </div>
                 </div>
-              </div>
-              <!--editing dept name-->
-              <div class="col-md-3">
-                <label class="form-label small text-muted">Department</label>
-                <select class="form-select" v-model="editForm.department_id" required> 
-                  <option v-for="(id, name) in deptMapping" :key="id" :value="id">
-                    {{ name }}
-                  </option>
-                </select>
-              </div>
-              <!--editing start year of doc-->
-              <div class="col-md-3">
-                <label class="form-label small text-muted">Start Year</label>
-                <input type="number" v-model="editForm.career_start_year" class="form-control">
-              </div>
-              <div class="col-12 mt-3">
-                <button class="btn btn-warning px-4 me-2 shadow-sm">Update</button>
-                <button type="button" class="btn btn-outline-secondary px-4 shadow-sm" @click="editingDoctor=null">Cancel</button>
-              </div>
-            </div>
-          </form>
+            </form>
         </div>
       </transition>
-<!--DISPLAY CARD OF ALL DOCS-->
-      <div class="card-body">
+
+      <div class="card-body table-responsive">
         <div v-if="doctors.length === 0" class="text-center py-4 text-muted">
           <p>No doctors found</p>
         </div>
-        <table v-else class="table table-hover align-middle">
+        <table v-else class="table table-hover align-middle mb-0">
           <thead class="table-light">
             <tr><th>ID</th><th>Name</th><th>Department</th><th class="text-end">Actions</th></tr>
           </thead>
@@ -200,6 +188,9 @@
         </table>
       </div>
     </div>
+  </div>
+
+</div>
 
   <!----------------------------------------------------------->
   <!--APPOINTMENT TABLE-->

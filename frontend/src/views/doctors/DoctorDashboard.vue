@@ -1,11 +1,11 @@
 <template>
-  <div class="container py-4">
+  <div class="container py-4 mt-5 pt-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2 border-primary-subtle">
       <h2 class="fw-bolder text-primary tracking-tight text-capitalize">
         <i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Welcome, {{ doctorProfile.name || 'Doctor' }}
       </h2>
       <button @click="logoutAccount" class="btn btn-outline-danger px-4 fw-semibold shadow-sm rounded-pill">
-        Sign Out
+        Logout
       </button>
     </div>
 
@@ -58,7 +58,7 @@
                       Provide Treatment
                     </button>
                     <button @click="cancelAppointment(record.id)" class="btn btn-outline-danger btn-sm w-100 fw-bold shadow-sm">
-                      Cancel Visit
+                      Cancel
                     </button>
                   </div>
                   
@@ -184,6 +184,7 @@ export default {
   name: 'DoctorDashboard',
   data() {
     return {
+      doctorProfile:{},
       consultations: [],
       openSlots: [],
       activeTreatmentId: null,
@@ -196,7 +197,7 @@ export default {
         start: '',
         end: ''
       },
-      // FIX: Added data properties for history modal
+      
       patientHistory: [],
       selectedPatientName: ''
     }
@@ -217,6 +218,7 @@ export default {
       localStorage.removeItem('auth_token');
       this.$router.push('/login');
     },
+    
     
     // --- Data Fetching ---
     async loadConsultations() {

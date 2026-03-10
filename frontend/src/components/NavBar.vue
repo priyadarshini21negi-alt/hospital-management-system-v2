@@ -13,12 +13,12 @@
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <div class="collapse navbar-collapse" id="hmsNav">
+      <div class="collapse navbar-collapse" id="hmsNav" v-if="!isAdminRoute">
         <ul class="navbar-nav mx-auto nav-pills">
-          <li class="nav-item"><a class="nav-link" href="#home-section">Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="#services-section">Services</a></li>
-          <li class="nav-item"><a class="nav-link" href="#about-section">About Us</a></li>
-          <li class="nav-item"><a class="nav-link" href="#testimonials-section">Testimonials</a></li>
+          <li class="nav-item"><a class="nav-link" href="#home-section" @click="closeMenu">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="#services-section"  @click="closeMenu">Services</a></li>
+          <li class="nav-item"><a class="nav-link" href="#about-section"  @click="closeMenu">About Us</a></li>
+          <li class="nav-item"><a class="nav-link" href="#testimonials-section"  @click="closeMenu">Testimonials</a></li>
         </ul>
         
         <div class="d-none d-lg-flex gap-2">
@@ -32,6 +32,11 @@
 <script>
 export default {
   name: 'NavBar',
+  computed: {
+    isAdminRoute(){
+      return this.$route.path.includes('/admin');
+    }
+  },
   methods: {
     scrollToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });

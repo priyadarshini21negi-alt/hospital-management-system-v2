@@ -111,6 +111,10 @@ class Patient(db.Model):
 # ==========================================  
 class Appointment(db.Model):
     __tablename__ = 'appointment'
+    __table_args__ = (
+        db.UniqueConstraint('doctor_id', 'appointment_datetime', name='uix_doctor_datetime'),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=False)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)

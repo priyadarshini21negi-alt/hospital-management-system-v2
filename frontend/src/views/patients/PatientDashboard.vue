@@ -1,5 +1,5 @@
 <template>
-  <div class="container py-4">
+  <div class="container py-4 mt-5 pt-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2 border-success-subtle">
       <h2 class="fw-bolder text-success tracking-tight text-capitalize">
         <i class="bi bi-person-heart me-2 text-primary"></i>Welcome, {{ patientProfile.name || 'Patient' }}
