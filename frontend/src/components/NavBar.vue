@@ -22,7 +22,7 @@
         </ul>
         
         <div class="d-none d-lg-flex gap-2">
-          <router-link to="/login" class="btn btn-sm btn-outline-primary">Login</router-link>
+          <router-link to="/ContactUs" class="btn btn-sm btn-outline-primary">Contact Us</router-link>
         </div>
       </div>
     </div>
@@ -40,6 +40,21 @@ export default {
   methods: {
     scrollToTop() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    closeMenu(){
+      const navCollapse = document.getElementById('hmsNav');
+
+      if (navCollapse && navCollapse.classList.contains('show')){
+        if (window.bootstrap){
+          let bsCollapse = window.bootstrap.Collapse.getInstance(navCollapse);
+          if (!bsCollapse) {
+            bsCollapse = new window.bootstrap.Collapse(navCollapse, {toggle:false});
+
+          }
+          bsCollapse.hide();
+        }
+      }
     }
   }
 }
