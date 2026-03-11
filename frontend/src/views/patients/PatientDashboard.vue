@@ -1,32 +1,48 @@
 <template>
   <div class="container py-4 mt-5 pt-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2 border-success-subtle">
-      <h2 class="fw-bolder text-success tracking-tight text-capitalize">
+      
+      <h2 class="fw-bolder text-success tracking-tight text-capitalize mb-0">
         <i class="bi bi-person-heart me-2 text-primary"></i>Welcome, {{ patientProfile.name || 'Patient' }}
       </h2>
-      <button class="btn btn-outline-primary px-4 fw-semibold shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+      
+      <div class="d-flex gap-3">
+        <button class="btn btn-outline-primary px-4 fw-semibold shadow-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#editProfileModal">
           <i class="bi bi-pencil-square me-1"></i> Edit Profile
         </button>
-      <button @click="logoutAccount" class="btn btn-outline-danger px-4 fw-semibold shadow-sm rounded-pill">
-        Sign Out
-      </button>
+        <button @click="logoutAccount" class="btn btn-outline-danger px-4 fw-semibold shadow-sm rounded-pill">
+          Sign Out
+        </button>
+      </div>
     </div>
-    
+   
 
     <div class="row gy-4">
+     
       <div class="col-lg-5">
         <div class="card shadow-sm border-0 bg-success bg-opacity-10 rounded-4">
           <div class="card-header bg-success text-white py-3 rounded-top-4 border-0">
             <h5 class="mb-0 fw-bold"><i class="bi bi-calendar-plus me-2"></i>Schedule a Visit</h5>
           </div>
+          
           <div class="card-body bg-white border border-success border-opacity-25 rounded-bottom-4 p-4">
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary"> Find Doctor</label>
+              <input 
+                type="text" 
+                class="form-control border-success-subtle" 
+                v-model="searchQuery" 
+                placeholder="Search by name or specialization..."
+              >
+            </div>
             <form @submit.prevent="submitBooking">
               
               <div class="mb-3">
                 <label class="form-label small fw-bold text-secondary">Step 1: Select a Specialist</label>
                 <select class="form-select border-success-subtle" v-model="bookingForm.doctor_id" @change="loadAvailableSlots" required>
                   <option value="" disabled>Choose your doctor...</option>
-                  <option v-for="doc in availableDoctors" :key="doc.id" :value="doc.id">
+                  <option v-for="doc in filteredDoctors" :key="doc.id" :value="doc.id">
                      {{ doc.name }} ({{ doc.department_name }})
                   </option>
                 </select>
@@ -138,16 +154,18 @@
 <script>
 export default {
   name: 'PatientDashboard',
+  
+  // 1. DATA BLOCK
   data() {
     return {
       availableDoctors: [],
+      searchQuery: '',
       openSlots: [], 
       myAppointments: [],
       bookingForm: {
         doctor_id: '',
         slot_id: '' 
       },
-      
       patientProfile: {
         name: '',
         number: '',
@@ -155,6 +173,31 @@ export default {
       }
     }
   },
+
+  // 2. WATCH BLOCK
+  watch: {
+    searchQuery() {
+      this.bookingForm.doctor_id = '';
+      this.bookingForm.slot_id = '';
+      this.openSlots = [];
+    }
+  },
+
+  // 3. COMPUTED BLOCK (✅ OUTSIDE METHODS)
+  computed: {
+    filteredDoctors() {
+      if (!this.searchQuery) {
+        return this.availableDoctors;
+      }
+      const query = this.searchQuery.toLowerCase();
+      return this.availableDoctors.filter(doc => 
+        (doc.name && doc.name.toLowerCase().includes(query)) || 
+        (doc.department_name && doc.department_name.toLowerCase().includes(query))
+      );
+    }
+  },
+
+  // 4. METHODS BLOCK (✅ SEPARATE SIBLING)
   methods: {
     logoutAccount() {
       localStorage.removeItem('auth_token');
@@ -186,21 +229,18 @@ export default {
         console.error("Error fetching history:", err);
       }
     },
+
     async cancelAppointment(appointmentId) {
       if (!confirm("Are you sure you want to cancel this appointment?")) return;
-
       try {
         const token = localStorage.getItem('auth_token');
         const response = await fetch(`http://127.0.0.1:5000/api/patient/appointments/${appointmentId}`, {
           method: 'DELETE',
           headers: { 'Authentication-Token': token }
         });
-
         if (response.ok) {
           alert("Appointment cancelled.");
-          this.fetchAppointmentHistory(); // Refresh the list
-          
-          // If the patient is currently viewing this doctor's slots, refresh the dropdown too
+          this.fetchAppointmentHistory(); 
           if (this.bookingForm.doctor_id) {
             this.loadAvailableSlots(); 
           }
@@ -216,9 +256,7 @@ export default {
     async loadAvailableSlots() {
       this.bookingForm.slot_id = ''; 
       this.openSlots = []; 
-      
       if (!this.bookingForm.doctor_id) return;
-
       try {
         const token = localStorage.getItem('auth_token');
         const response = await fetch(`http://127.0.0.1:5000/api/doctors/${this.bookingForm.doctor_id}/slots`, {
@@ -240,8 +278,7 @@ export default {
         const payload = { 
           doctor_id: this.bookingForm.doctor_id,
           appointment_datetime: selectedSlot.start
-         };
-
+        };
         const response = await fetch('http://127.0.0.1:5000/api/patient/appointments', {
           method: 'POST',
           headers: { 
@@ -265,7 +302,6 @@ export default {
       }
     },
 
-    // FIX 2: Added the methods to fetch and update the profile
     async loadProfile() {
       try {
         const token = localStorage.getItem('auth_token');
@@ -294,7 +330,6 @@ export default {
             number: this.patientProfile.number
           })
         });
-
         if (response.ok) {
           alert("Profile updated successfully!");
           document.getElementById('closeProfileModal').click();
@@ -307,10 +342,12 @@ export default {
       }
     }
   },
+
+  // 5. MOUNTED BLOCK
   mounted() {
     this.fetchDoctorList();
     this.fetchAppointmentHistory();
-    this.loadProfile(); // FIX 3: Load the profile when dashboard opens
+    this.loadProfile(); 
   }
 }
 </script>

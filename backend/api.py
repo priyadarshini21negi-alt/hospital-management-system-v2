@@ -448,7 +448,15 @@ class PatientAppointmentsAPI(Resource):
             patient_id=current_user.patient.id
         ).order_by(Appointment.appointment_datetime.asc()).all()
         
-        return [app.to_dict() for app in appointments], 200
+        result = []
+        for app in appointments:
+            app_data = app.to_dict()
+            if app.treatment:
+                app_data['treatment'] = app.treatment.to_dict()
+            else:
+                app_data['treatment'] = None
+            result.append(app_data)
+        return result, 200
 
     # C: Patient booking a new appointment
     @auth_required("token")
@@ -511,7 +519,7 @@ class PatientAppointmentsAPI(Resource):
             return {"message": "Cannot cancel a completed consultation."}, 400 
         
         try: 
-            #freeing up the doc's slot 
+            # unbooking on doc's side
             slot=DocAvailability.query.filter_by(
                 doctor_id=appointment.doctor_id,
                 start_time=appointment.appointment_datetime
@@ -519,12 +527,15 @@ class PatientAppointmentsAPI(Resource):
 
             if slot:
                 slot.is_booked = False 
-                db.session.delete(appointment)
-                db.session.commit()
-                return {"message": "Appointment cancelled successfully."}, 200
+
+            
+            db.session.delete(appointment)
+            db.session.commit()
+            return {"message": "Appointment cancelled successfully."}, 200
+
         except Exception as e:
             db.session.rollback()
-
+            return {"message": f"Database error : {str(e)}"}, 500
 #--------------------------------------------------        
 # 7. AVAILABLE SLOTS FOR PATIENT.
 #----------------------------------------------------
