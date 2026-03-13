@@ -11,7 +11,7 @@ const routes = [
   { path: '/login', name: 'login', component: LoginView },
   { 
     //lazy loading??
-    path: '/about', name: 'about', component: () => import('../views/AboutView.vue') 
+    path: '/ContactUs', name: 'ContactUs', component: () => import('../views/ContactView.vue') 
   },
   { 
     path: '/admin-dashboard', name: 'AdminDashboard', component: AdminDashboard,
