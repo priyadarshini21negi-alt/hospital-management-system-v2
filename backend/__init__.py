@@ -3,15 +3,34 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security import Security, SQLAlchemyUserDatastore
 from flask_restful import Api
 from flask_cors import CORS
-
 from .config import Config
+
+from celery import Celery 
+from celery.schedules import crontab 
 
 db = SQLAlchemy()
 security = Security()
+celery = Celery(__name__, 
+                broker="redis://localhost:6379/0",
+                backend="redis://localhost:6379/0")
+@celery.task 
+def send_daily_reminders():
+    print("Sending patient reminders")
+    return "Reminders Sent"
+
+celery.conf.beat_schedule = {
+    'test-reminders-every-minute': {
+        'task': 'backend.send_daily_reminders',  
+        'schedule': crontab(minute='*'),
+    },
+}
+
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    celery.conf.update(app.config)
 
     # Extensions
     db.init_app(app)
@@ -70,6 +89,8 @@ def create_app():
                  '/api/doctor/availability/<int:slot_id>')
     
     api.add_resource(DoctorPatientHistoryAPI, '/api/doctor/patient/<int:patient_id>/history')
+
+  
 
     # DB tables
     with app.app_context():

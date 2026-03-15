@@ -9,19 +9,21 @@ class Config:
     # Flask-Security-Too settings
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-key")
     SECURITY_PASSWORD_SALT = "salt-for-tokens"
-    SECURITY_PASSWORD_HASH = "bcrypt" # Required for security
+    SECURITY_PASSWORD_HASH = "bcrypt" 
     
     # Token-Based Auth
     SECURITY_TOKEN_AUTHENTICATION_HEADER = "Authentication-Token"
     SECURITY_TOKEN_MAX_AGE = 3600 
     SECURITY_FLASH_MESSAGES = False 
-    WTF_CSRF_ENABLED = False # CRITICAL: Disable for pure APIs
+    WTF_CSRF_ENABLED = False 
 
-    # --- CRITICAL FIX FOR API LOGIN ---
-    WTF_CSRF_ENABLED = False                        # 1. Disable Flask-WTF CSRF
-    SECURITY_CSRF_PROTECT_MECHANISMS = []           # 2. Disable Security CSRF mechanisms
-    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS = True    # 3. Allow login without CSRF
+    WTF_CSRF_ENABLED = False                       
+    SECURITY_CSRF_PROTECT_MECHANISMS = []           
+    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS = True    
     # ----------------------------------
 
     # CORS
     CORS_HEADERS = 'Content-Type'
+
+
+   
