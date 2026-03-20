@@ -39,12 +39,13 @@
 
 
 <div class="row g-4 mb-4">
-  
+<!--PATIENT TABLE-->
   <div class="col-lg-6 d-flex flex-column">
     <div class="card shadow-sm border-0 flex-grow-1 mb-0">
       <div class="card-header bg-success text-white py-3">
         <h4 class="mb-0 fw-semibold"><i class="bi bi-people-fill me-2"></i>Manage Patients</h4>
       </div>
+      <!--patient search bar-->
       <div class="card-body border-bottom bg-light">
         <div class="input-group shadow-sm">
           <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
@@ -75,7 +76,7 @@
       </div>
     </div>
   </div>
-
+<!--DOCTOR TABLE-->
   <div class="col-lg-6 d-flex flex-column">
     <div class="card shadow-sm border-0 flex-grow-1 mb-0">
       <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">

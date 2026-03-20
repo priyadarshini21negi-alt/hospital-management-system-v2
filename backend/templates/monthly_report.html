@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monthly Report: {{ month }}</title>
+    <style>
+        body {font-family: Arial, sans-serif; padding:20px}
+        table {width: 100%; border-collapse: collapse; margin-top: 20px;}
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #1f4e79; color: white; }
+    </style>
+</head>
+
+<body>
+    <h2>Healix Hospital: Monthly Performance Report</h2>
+    <h3>Doctor: {{doctor.name}} | Department: {{ doctor.department.name }}</h3>
+    <p>Report Period: {{month}}</p>
+
+    <h4>Completed Treatments Summary</h4>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Patient Name</th>
+            <th>Diagnosis</th>
+            <th>Prescription</th>
+        </tr> 
+        {% for app in appointments %}
+        <tr>
+            <td>{{ app.appointment_datetime.strftime('%Y-%m-%d') }}</td>
+            <td>{{ app.patient.name }}</td>
+            <td>{{ app.treatment.diagnosis if app.treatment else 'N/A' }}</td>
+            <td>{{ app.treatment.prescription if app.treatment else 'N/A' }}</td>
+        </tr>
+        {% else %}
+        <tr> 
+        <td colspan="4" style="text-align: center;">No completed appointments this month.</td>
+        </tr>
+        {% endfor %}
+        </table>
+</body>
+</html>

@@ -121,9 +121,6 @@
         </div>
       </div>
 
-  
-
-
       <div class="col-md-4">
         <div class="glass-card p-4 rounded-4 shadow-sm h-100" style="background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.7);">
           <div class="d-flex align-items-center mb-3">
