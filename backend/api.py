@@ -721,3 +721,24 @@ class DoctorPatientHistoryAPI(Resource):
                 app_data['treatment'] = app.treatment.to_dict()
             result.append(app_data)
         return result, 200
+
+
+#--------------------------------------------------        
+# 11. ASYNC CSV EXPORT API
+#---------------------------------------------------
+class ExportHistoryAPI(Resource):
+    @auth_required("token")
+    def post(self):
+        if 'patient' not in [role.name for role in current_user.roles]:
+            return {"message": "Unauthorized."}, 403 
+        patient_id = current_user.patient.id 
+
+        #importing task here to avoid circular imports 
+        from .__init__ import export_patient_history 
+        #triggering the celery task asynchronously using .delay()
+        task =  export_patient_history.delay(patient_id)
+        # Return immediately to the user while Celery works in the background
+        return {
+            "message":"Export Started.",
+            "task_id":task.id 
+        }, 202 

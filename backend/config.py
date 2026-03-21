@@ -26,4 +26,13 @@ class Config:
     CORS_HEADERS = 'Content-Type'
 
 
+    #FLASK-MAIN (MailTrap for testing)
+    MAIL_SERVER = 'sandbox.smtp.mailtrap.io'
+    MAIL_PORT = 2525
+    MAIL_USERNAME = '1f9dac9bcdeca1'
+    MAIL_PASSWORD = '79ec67f721c176'
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+
+
    

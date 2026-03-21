@@ -74,6 +74,9 @@
           <div class="card-header bg-light border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 text-dark fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>My Medical History</h5>
             <span class="badge bg-secondary rounded-pill">{{ myAppointments?.length || 0 }} Visits</span>
+            <button @click="requestExport" class="btn btn-outline-primary btn-sm mt-3">
+            Export History
+            </button>
           </div>
           
           <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
@@ -154,8 +157,7 @@
 <script>
 export default {
   name: 'PatientDashboard',
-  
-  // 1. DATA BLOCK
+
   data() {
     return {
       availableDoctors: [],
@@ -174,7 +176,6 @@ export default {
     }
   },
 
-  // 2. WATCH BLOCK
   watch: {
     searchQuery() {
       this.bookingForm.doctor_id = '';
@@ -183,7 +184,6 @@ export default {
     }
   },
 
-  // 3. COMPUTED BLOCK (✅ OUTSIDE METHODS)
   computed: {
     filteredDoctors() {
       if (!this.searchQuery) {
@@ -197,8 +197,42 @@ export default {
     }
   },
 
-  // 4. METHODS BLOCK (✅ SEPARATE SIBLING)
   methods: {
+    // --- NEW EXPORT LOGIC ---
+    async requestExport() {
+      const token = localStorage.getItem('auth_token'); 
+
+      if (!token) {
+        alert("You must be logged in to export data.");
+        return;
+      }
+
+      try {
+        alert("Requesting export... please wait.");
+
+        const response = await fetch('http://127.0.0.1:5000/api/patient/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authentication-Token': token
+          }
+        });
+
+        const data = await response.json();
+
+        if (response.status === 202) {
+          alert("✅ " + data.message + " Check your Mailtrap inbox shortly!");
+        } else {
+          alert("❌ Export failed: " + data.message);
+        }
+        
+      } catch (error) {
+        console.error("Export error:", error);
+        alert("A network error occurred.");
+      }
+    },
+    // -------------------------
+
     logoutAccount() {
       localStorage.removeItem('auth_token');
       this.$router.push('/login');
@@ -341,9 +375,8 @@ export default {
         console.error("Error updating profile:", err);
       }
     }
-  },
+  }, // <--- The Methods object is properly closed down here now.
 
-  // 5. MOUNTED BLOCK
   mounted() {
     this.fetchDoctorList();
     this.fetchAppointmentHistory();
