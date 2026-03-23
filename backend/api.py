@@ -1,10 +1,35 @@
 from datetime import datetime, timedelta
-from flask import current_app, request, jsonify
-from flask_restful import Resource, Api
+from flask import current_app, request
+from flask_restful import Resource
+from functools import wraps
 from flask_security import auth_required, current_user, hash_password
 from .models import db, User, Patient, Doctor, Department, Appointment, Treatment, DocAvailability
 from sqlalchemy import or_, and_ 
 from sqlalchemy.exc import IntegrityError
+
+from backend.__init__ import cache 
+import enum 
+
+
+
+#--------------------------------------------
+# ROLES / RBAC DECORATOR
+#--------------------------------------------
+def role_required(role_name):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not any(role.name == role_name for role in current_user.roles):
+                return {"message": f"Unauthorized. {role_name.capitalize()} access required."}, 403
+            
+            return func(*args, **kwargs) 
+        return wrapper
+    return decorator
+
+class AppointmentStatus(enum.Enum):
+    BOOKED = "Booked"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
 
 #---------------------------------------------
 # 1. PATIENT REGISTRATION API (and admin managing patients)
@@ -42,6 +67,7 @@ class PatientRegister(Resource):
             db.session.add(patient)
             db.session.commit()
             return {"message":"Patient registered successfully", "email":email}, 201 
+
         except Exception as e:
             db.session.rollback()
             return {"message":f"Registration failed: {str(e)}"}, 500
@@ -69,6 +95,7 @@ class UserResource(Resource):
 class DoctorAPI(Resource):
     #R : fetching all/one doc 
     @auth_required("token")
+    @cache.cached(timeout=300, query_string=True)
     def get(self, doctor_id=None):
         if doctor_id:
             doctor=Doctor.query.get(doctor_id)
@@ -94,11 +121,9 @@ class DoctorAPI(Resource):
         
     #C : admin adding new doc 
     @auth_required("token")
+    @role_required("admin")
     def post(self):
         # SECURITY CHECK: Only Admin can add doctors
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized. Only admins can add doctors."}, 403
-
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')            
@@ -131,9 +156,9 @@ class DoctorAPI(Resource):
         
     #U: admin update doc info 
     @auth_required("token")
+    @role_required("admin")
     def put(self, doctor_id):
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+        
         
         doctor = Doctor.query.get(doctor_id)
         if not doctor:
@@ -150,11 +175,12 @@ class DoctorAPI(Resource):
             doctor.career_start_year = data['career_start_year'] 
 
         #updating USER email 
-        if 'email' in data and data['email'] != doctor.user.email:
-            existing_user=User.query.filter_by(email=data['email']).first()
-            if existing_user:
-                return{"message" :"Email already in use"}, 409 
-        doctor.user.email = data["email"]
+        if 'email' in data:
+            if data['email'] != doctor.user.email:
+                existing_user = User.query.filter_by(email=data['email']).first()
+                if existing_user:
+                    return {"message": "Email already in use"}, 409
+            doctor.user.email = data['email']
         
 
         try:
@@ -167,25 +193,25 @@ class DoctorAPI(Resource):
     #D : admin removing doc 
 
     @auth_required("token")
+    @role_required("admin")
     def delete(self, doctor_id):
-        # SECURITY CHECK: Only Admin can delete doctors
-            if 'admin' not in [role.name for role in current_user.roles]:
-                return {"message": "Unauthorized."}, 403
+       
+        
 
-            doctor = Doctor.query.get(doctor_id)
-            if not doctor:
-                return {"message": "Doctor not found"}, 404
+        doctor = Doctor.query.get(doctor_id)
+        if not doctor:
+            return {"message": "Doctor not found"}, 404
 
-            try:
-                user = doctor.user
-                db.session.delete(doctor)
-                db.session.delete(user)
-                db.session.commit()
-                return {"message": "Doctor deleted successfully"}, 200
-            except Exception as e:
-                db.session.rollback()
-                return {"message": str(e)}, 500
-            
+        try:
+            user = doctor.user
+            db.session.delete(doctor)
+            db.session.delete(user)
+            db.session.commit()
+            return {"message": "Doctor deleted successfully"}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {"message": str(e)}, 500
+        
 
 
 #--------------------------------------------------        
@@ -195,11 +221,8 @@ class PatientAPI(Resource):
     
     # R: Admin fetching all patients (with Search)
     @auth_required("token")
-    def get(self):
-        # SECURITY CHECK: Only Admin can view all patients
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized. Only admins can view patients."}, 403
-            
+    @role_required("admin")
+    def get(self):     
         search_query = request.args.get('search', '').strip()
         
         if search_query:
@@ -226,10 +249,9 @@ class PatientAPI(Resource):
 
     # D: Admin deleting a patient
     @auth_required("token")
+    @role_required("admin")
     def delete(self, patient_id):
-        # SECURITY CHECK: Only Admin can delete patients
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+        
 
         patient = Patient.query.get(patient_id)
         if not patient:
@@ -255,9 +277,9 @@ class PatientAPI(Resource):
 class AdminAppointmentAPI(Resource):
     #fetching all appointment with search and filters 
     @auth_required("token")
+    @role_required("admin")
     def get(self):
-        if not any(role.name == "admin" for role in current_user.roles):
-            return {"message": "Unauthorized."}, 403
+        
 
         query = Appointment.query.join(Doctor).join(Patient) # Join early for search logic
         
@@ -284,9 +306,9 @@ class AdminAppointmentAPI(Resource):
 
     # U: Update appointment status (e.g., Cancelled)
     @auth_required("token")
+    @role_required("admin")
     def put(self, appointment_id):
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+      
             
         appointment = Appointment.query.get(appointment_id)
         if not appointment:
@@ -305,9 +327,9 @@ class AdminAppointmentAPI(Resource):
 
     # D: Delete an appointment entirely
     @auth_required("token")
+    @role_required("admin")
     def delete(self, appointment_id):
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+        
             
         appointment = Appointment.query.get(appointment_id)
         if not appointment:
@@ -323,11 +345,10 @@ class AdminAppointmentAPI(Resource):
 
 class AdminStatsAPI(Resource):
     @auth_required("token")
+    @role_required("admin")
     def get(self):
         # Security check
-        if 'admin' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized. Admin access only."}, 403
-            
+           
         return {
             "total_patients": Patient.query.count(),
             "total_doctors": Doctor.query.count(),
@@ -340,11 +361,10 @@ class AdminStatsAPI(Resource):
 #---------------------------------------------------- 
 class DoctorAppointmentsAPI(Resource):
     @auth_required("token")
+    @role_required("doctor")
     def get(self):
   
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized. Doctor access only."}, 403
-
+        
         # specific doc - userprofile
         current_doctor = current_user.doctor 
         if not current_doctor:
@@ -367,15 +387,17 @@ class DoctorAppointmentsAPI(Resource):
 
     #  Add a treatment to an appointment
     @auth_required("token")
+    @role_required("doctor")
     def post(self):
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+       
 
         data = request.get_json()
         appointment_id = data.get('appointment_id')
         
         appointment = Appointment.query.get(appointment_id)
-        
+
+        if not appointment:
+            return {"message": "Appointment not found"}, 404
          # appointment actually belongs to this doctor
         if appointment.doctor_id != current_user.doctor.id:
             return {"message": "You cannot treat another doctor's patient."}, 403
@@ -389,7 +411,7 @@ class DoctorAppointmentsAPI(Resource):
                 notes=data.get('notes', '')
             )
             # Update Appointment Status
-            appointment.status = "Completed"
+            appointment.status = AppointmentStatus.COMPLETED.value 
             
             db.session.add(new_treatment)
             db.session.commit()
@@ -401,9 +423,9 @@ class DoctorAppointmentsAPI(Resource):
         
     # D doc cancelling appointment 
     @auth_required("token")
+    @role_required("doctor")
     def put(self, appointment_id=None):
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
+        
             
         if not appointment_id:
             return {"message": "Appointment ID required"}, 400
@@ -418,7 +440,7 @@ class DoctorAppointmentsAPI(Resource):
             if appointment.status == 'Completed':
                 return {"message": "Cannot cancel a completed consultation."}, 400
                 
-            appointment.status = "Cancelled"
+            appointment.status = AppointmentStatus.CANCELLED.value
             
             slot=DocAvailability.query.filter_by(
                 doctor_id=appointment.doctor_id, 
@@ -440,10 +462,9 @@ class DoctorAppointmentsAPI(Resource):
 class PatientAppointmentsAPI(Resource):
     # R: Patient viewing their own appointments
     @auth_required("token")
+    @role_required("patient")
     def get(self):
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized. Patient access only."}, 403
-            
+         
         appointments = Appointment.query.filter_by(
             patient_id=current_user.patient.id
         ).order_by(Appointment.appointment_datetime.asc()).all()
@@ -460,10 +481,9 @@ class PatientAppointmentsAPI(Resource):
 
     # C: Patient booking a new appointment
     @auth_required("token")
+    @role_required("patient")
     def post(self):
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403
-
+        
         data = request.get_json()
         doctor_id = data.get('doctor_id')
         datetime_str = data.get('appointment_datetime') # Expected: YYYY-MM-DDTHH:MM
@@ -471,7 +491,7 @@ class PatientAppointmentsAPI(Resource):
         if not doctor_id or not datetime_str:
             return {"message": "Doctor and Date/Time are required"}, 400
 
-        try:
+        try: #post methods
             app_dt = datetime.fromisoformat(datetime_str)
             slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
             
@@ -490,6 +510,7 @@ class PatientAppointmentsAPI(Resource):
             )
             db.session.add(new_appointment)
             db.session.commit()
+            cache.delete(f'/api/doctors/{doctor_id}/slots')
             return {"message": "Appointment booked successfully!"}, 201
             
         except IntegrityError:
@@ -504,9 +525,9 @@ class PatientAppointmentsAPI(Resource):
         
     # D : Patient cancelling appointment 
     @auth_required("token")
+    @role_required("patient")
     def delete(self, appointment_id=None):
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403 
+       
         if not appointment_id:
             return {"message": "Appointment ID required"}, 400 
         
@@ -515,7 +536,7 @@ class PatientAppointmentsAPI(Resource):
         if not appointment or appointment.patient_id != current_user.patient.id:
             return {"message": "Appointment not found or unauthorized."}, 404 
         #preventing cancelling past/completed appointment 
-        if appointment.status=="Completed":
+        if appointment.status==AppointmentStatus.COMPLETED.value:
             return {"message": "Cannot cancel a completed consultation."}, 400 
         
         try: 
@@ -531,6 +552,10 @@ class PatientAppointmentsAPI(Resource):
             
             db.session.delete(appointment)
             db.session.commit()
+
+            
+            cache.delete(f'/api/doctors/{appointment.doctor_id}/slots')
+
             return {"message": "Appointment cancelled successfully."}, 200
 
         except Exception as e:
@@ -541,6 +566,8 @@ class PatientAppointmentsAPI(Resource):
 #----------------------------------------------------
 class DoctorPublicSlotsAPI(Resource):
     @auth_required("token")
+    
+    @cache.cached(timeout=60)
     def get(self, doctor_id): 
         now = datetime.utcnow() 
         slots = DocAvailability.query.filter(
@@ -559,9 +586,9 @@ class DoctorPublicSlotsAPI(Resource):
 #---------------------------------------------------
 class PatientProfileAPI(Resource):
     @auth_required("token")
+    @role_required("patient")
     def get(self):
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized"}, 403
+       
 
         patient = current_user.patient 
         return {
@@ -571,10 +598,10 @@ class PatientProfileAPI(Resource):
         }, 200 
 
     @auth_required("token")
+    @role_required("patient")
     def put(self):
-        # Update logged-in patient's info
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized"}, 403
+        
+       
 
         data = request.get_json()
         patient = current_user.patient
@@ -601,9 +628,9 @@ class PatientProfileAPI(Resource):
 #---------------------------------------------------
 class DocAvailabilityAPI(Resource):
     @auth_required("token")
+    @role_required("doctor")
     def get(self):   #future available slots
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return{"message": "Unauthorized"}, 403 
+       
 
         now = datetime.utcnow()
         slots = DocAvailability.query.filter(
@@ -617,10 +644,8 @@ class DocAvailabilityAPI(Resource):
 
 
     @auth_required("token")
+    @role_required("doctor")
     def post(self):
-
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403 
 
         try:
             data = request.get_json()
@@ -664,6 +689,9 @@ class DocAvailabilityAPI(Resource):
             db.session.add(new_slot)
             db.session.commit()
 
+        
+            cache.delete(f'/api/doctors/{current_user.doctor.id}/slots')
+
             return {"message": "Availability added successfully!"}, 201
 
         except ValueError:
@@ -678,10 +706,10 @@ class DocAvailabilityAPI(Resource):
     # DELETE SLOT
     # ---------------------------------------
     @auth_required("token")
+    @role_required("doctor")
     def delete(self, slot_id):
 
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403 
+       
 
         slot = DocAvailability.query.get(slot_id)
 
@@ -694,6 +722,10 @@ class DocAvailabilityAPI(Resource):
         try:
             db.session.delete(slot)
             db.session.commit()
+
+          
+            cache.delete(f'/api/doctors/{current_user.doctor.id}/slots')
+
             return {"message": "Slot removed."}, 200
 
         except Exception as e:
@@ -705,13 +737,14 @@ class DocAvailabilityAPI(Resource):
 #---------------------------------------------------
 class DoctorPatientHistoryAPI(Resource):
     @auth_required("token")
+    @role_required("doctor")
     def get(self, patient_id):
-        if 'doctor' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403 
+        
         
         history = Appointment.query.filter_by(
             patient_id=patient_id,
-            status="Completed"
+            doctor_id=current_user.doctor.id,
+            status=AppointmentStatus.COMPLETED.value 
         ).order_by(Appointment.appointment_datetime.desc()).all() 
 
         result=[]
@@ -728,9 +761,9 @@ class DoctorPatientHistoryAPI(Resource):
 #---------------------------------------------------
 class ExportHistoryAPI(Resource):
     @auth_required("token")
+    @role_required("patient")
     def post(self):
-        if 'patient' not in [role.name for role in current_user.roles]:
-            return {"message": "Unauthorized."}, 403 
+         
         patient_id = current_user.patient.id 
 
         #importing task here to avoid circular imports 
@@ -741,4 +774,4 @@ class ExportHistoryAPI(Resource):
         return {
             "message":"Export Started.",
             "task_id":task.id 
-        }, 202 
+        }, 202

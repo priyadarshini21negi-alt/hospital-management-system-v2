@@ -6,7 +6,8 @@ from flask_cors import CORS
 from .config import Config
 from datetime import datetime, timedelta
 
-from flask_mail import Mail, Message 
+from flask_mail import Mail, Message
+from flask_caching import Cache 
 
 from celery import Celery 
 from celery.schedules import crontab 
@@ -16,6 +17,11 @@ import os
 
 
 db = SQLAlchemy()
+cache = Cache(config={
+    'CACHE_TYPE': 'RedisCache',
+    'CACHE_REDIS_URL': 'redis://localhost:6379/0',
+    'CACHE_DEFAULT_TIMEOUT': 300 # Default TTL is 5 minutes
+})
 security = Security()
 mail = Mail()
 celery = Celery(__name__, 
@@ -168,6 +174,9 @@ def create_app():
     CORS(app)
     api = Api(app)
     mail.init_app(app)
+
+    #cache 
+    cache.init_app(app)
 
     # Security
     from .models import User, Role
