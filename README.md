@@ -24,6 +24,7 @@ HMS-V2 is a hospital management platform designed to streamline interactions bet
 
 **Step 2: Start the Flask Backend (Terminal 1)**
 `source venv/bin/activate`
+`seed.py`
 `python3 -m backend.app`
 
 **Step 3: Start the Vue Frontend (Terminal 2)**
