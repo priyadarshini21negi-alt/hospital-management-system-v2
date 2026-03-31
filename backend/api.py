@@ -7,7 +7,7 @@ from .models import db, User, Patient, Doctor, Department, Appointment, Treatmen
 from sqlalchemy import or_, and_ 
 from sqlalchemy.exc import IntegrityError
 
-from backend.__init__ import cache 
+from . import cache
 import enum 
 
 
@@ -92,112 +92,80 @@ class UserResource(Resource):
 #--------------------------------------------------        
 # 3. DOCTOR API (Public and Private)
 #----------------------------------------------------
+
 class DoctorAPI(Resource):
-    #R : fetching all/one doc 
     @auth_required("token")
-    @cache.cached(timeout=300, query_string=True)
+
     def get(self, doctor_id=None):
+        cache_key = f"doctors_list_{doctor_id}"
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            return cached_data, 200
+
+        # --- DATABASE FETCH LOGIC ---
         if doctor_id:
-            doctor=Doctor.query.get(doctor_id)
+            doctor = Doctor.query.get(doctor_id)
             if not doctor:
-                return {"message":"Doctor not found"}, 404 
-            return doctor.to_dict(), 200 
-        
-            ''' milestone-03 A-D-M : Search Docs (by name/specialization)'''
+                return {"message": "Doctor not found"}, 404 
+            res = doctor.to_dict() 
         else:
-            search_query = request.args.get('search','').strip()
+            search_query = request.args.get('search', '').strip()
             if search_query:
                 doctors = Doctor.query.filter(
                     or_(
                         Doctor.name.ilike(f"%{search_query}%"),
-                        Doctor.department.has(
-                            Department.name.ilike(f"%{search_query}%")
-                        )
+                        Doctor.department.has(Department.name.ilike(f"%{search_query}%"))
                     )
                 ).all()
             else:
-                doctors=Doctor.query.all()
-            return [doc.to_dict() for doc in doctors],200
+                doctors = Doctor.query.all()
+            
+            res = [doc.to_dict() for doc in doctors]
+
+        # ---CACHING LOGIC ---
+        cache.set(cache_key, res, timeout=300) 
+        print(f"Cache Miss: Saved {cache_key} to Redis")
+        return res, 200 
         
-    #C : admin adding new doc 
     @auth_required("token")
     @role_required("admin")
     def post(self):
-        # SECURITY CHECK: Only Admin can add doctors
         data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')            
-        name = data.get('name')
-        department_id = data.get('department_id')
-        career_start_year = data.get('career_start_year')
-
-        if not email or not password or not name:
-            return {"message": "Missing required fields"}, 400
-
-        if User.query.filter_by(email=email).first():
-            return {"message": "Email already registered"}, 409
-
-        ds = current_app.extensions['security'].datastore
-
+        
+        # --VALIDATION--
+        
         try:
-            user = ds.create_user(email=email, password=hash_password(password), roles=['doctor']) 
-
-            doctor = Doctor(name=name, 
-                            user=user,
-                            department_id=department_id, 
-                            career_start_year=career_start_year
-                            ) # Add specialization=data.get('specialization') if you have it
-            db.session.add(doctor)
+            
             db.session.commit()
+           
+            cache.delete("doctors_list_None")
             return {"message": "Doctor created successfully!"}, 201
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500 
-        
-    #U: admin update doc info 
+
     @auth_required("token")
     @role_required("admin")
     def put(self, doctor_id):
-        
-        
         doctor = Doctor.query.get(doctor_id)
         if not doctor:
             return {"message": "Doctor not found"}, 404 
         
-        data = request.get_json() 
-        
-        #updating:
-        if 'name' in data:
-            doctor.name = data['name']
-        if 'department_id' in data:
-            doctor.department_id = data['department_id']
-        if 'career_start_year' in data:
-            doctor.career_start_year = data['career_start_year'] 
-
-        #updating USER email 
-        if 'email' in data:
-            if data['email'] != doctor.user.email:
-                existing_user = User.query.filter_by(email=data['email']).first()
-                if existing_user:
-                    return {"message": "Email already in use"}, 409
-            doctor.user.email = data['email']
-        
+       
 
         try:
             db.session.commit()
+            cache.delete("doctors_list_None")
+            cache.delete(f"doctors_list_{doctor_id}")
             return {"message": "Doctor updated successfully"}, 200
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500
         
-    #D : admin removing doc 
-
     @auth_required("token")
     @role_required("admin")
     def delete(self, doctor_id):
-       
-        
-
         doctor = Doctor.query.get(doctor_id)
         if not doctor:
             return {"message": "Doctor not found"}, 404
@@ -207,6 +175,9 @@ class DoctorAPI(Resource):
             db.session.delete(doctor)
             db.session.delete(user)
             db.session.commit()
+          
+            cache.delete("doctors_list_None")
+            cache.delete(f"doctors_list_{doctor_id}")
             return {"message": "Doctor deleted successfully"}, 200
         except Exception as e:
             db.session.rollback()
@@ -567,7 +538,7 @@ class PatientAppointmentsAPI(Resource):
 class DoctorPublicSlotsAPI(Resource):
     @auth_required("token")
     
-    @cache.cached(timeout=60)
+    
     def get(self, doctor_id): 
         now = datetime.utcnow() 
         slots = DocAvailability.query.filter(

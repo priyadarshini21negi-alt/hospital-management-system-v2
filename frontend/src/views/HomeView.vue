@@ -47,42 +47,42 @@
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-truck-front fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">🩺 Emergency Medicine</h5>
+          <h5 class="fw-bold mb-0 service-title">Emergency Medicine</h5>
         </div>
       </div>
 
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-stethoscope fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">⚕︎ General Medicine</h5>
+          <h5 class="fw-bold mb-0 service-title">⚕General Medicine</h5>
         </div>
       </div>
 
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-heart-pulse fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">🫀 Cardiology</h5>
+          <h5 class="fw-bold mb-0 service-title">Cardiology</h5>
         </div>
       </div>
 
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-diagram-3 fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">🧠 Neurology</h5>
+          <h5 class="fw-bold mb-0 service-title">Neurology</h5>
         </div>
       </div>
 
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-ribbon fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">🎗 Oncology</h5>
+          <h5 class="fw-bold mb-0 service-title">Oncology</h5>
         </div>
       </div>
 
       <div class="col-lg-4 col-md-6">
         <div class="service-card p-4 rounded-4 shadow-sm text-center d-flex flex-column align-items-center justify-content-center h-100">
           <i class="bi bi-stars fs-1 mb-3 service-icon"></i>
-          <h5 class="fw-bold mb-0 service-title">👤 Dermatology</h5>
+          <h5 class="fw-bold mb-0 service-title">Dermatology</h5>
         </div>
       </div>
     </div>
@@ -90,10 +90,60 @@
     </section>
 
 <!--ABOUT-->
-  <section id="about-section" style="height: 100vh; padding-top: 80px;">
-      <h2>About Us</h2>
-      <p>Information about HMS V2 goes here.</p>
-    </section>
+<section id="about-section" style="min-height: 80vh; padding-top: 80px; padding-bottom: 80px; background-color: #f8fbfd;">
+  <div class="container">
+    <div class="row align-items-center">
+      
+      <div class="col-lg-6 mb-5 mb-lg-0 pe-lg-5">
+        <p class="text-uppercase fw-bold mb-2" style="color: #5a7d9a; letter-spacing: 2px;">About Us</p>
+        <h2 class="display-6 fw-bold mb-4" style="color: #1f4e79;">Modern Healthcare,<br>Rooted in Compassion</h2>
+        
+        <p class="lead mb-4" style="color: #4a5568;">
+          Healix Hospital was founded with a singular vision: to bridge the gap between cutting-edge medical technology and personalized patient care.
+        </p>
+        <p class="mb-4" style="color: #5a7d9a;">
+          Our state-of-the-art Hospital Management System (HMS v2) ensures that your medical history, appointments, and prescriptions are seamlessly integrated. This allows our world-class specialists to focus on what truly matters—your health and recovery.
+        </p>
+
+        <div class="row g-4 mt-2">
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-shield-check fs-2 me-3" style="color: #1f4e79;"></i>
+              <h6 class="mb-0 fw-bold" style="color: #2c3e50;">Data Security</h6>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-clock-history fs-2 me-3" style="color: #1f4e79;"></i>
+              <h6 class="mb-0 fw-bold" style="color: #2c3e50;">24/7 Access</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-6">
+        <div class="position-relative mt-4 mt-lg-0">
+          
+          <div class="rounded-4 shadow-lg overflow-hidden" style="border: 1px solid rgba(31, 78, 121, 0.1);">
+            <img src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Hospital Facility" class="img-fluid w-100" style="object-fit: cover; height: 450px;">
+          </div>
+          
+          <div class="glass-card position-absolute bottom-0 start-0 translate-middle-x mb-5 ms-5 p-4 rounded-4 shadow" style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); z-index: 2;">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-award-fill fs-1 me-3 text-warning"></i>
+              <div>
+                <h3 class="mb-0 fw-bold" style="color: #1f4e79;">10+</h3>
+                <small style="color: #5a7d9a;" class="fw-bold text-uppercase">Years of Trust</small>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
 
 <!--TESTIMONIALS-->
    <section id="testimonials-section" style="min-height: 80vh; padding-top: 80px; padding-bottom: 80px; background: linear-gradient(135deg, #fdfdfd 0%, #e8f0f8 100%);">
@@ -159,19 +209,19 @@
   </div>
 </section>
 <!------------------------ -->
-<FooterComponent />
+
 </div>
 </template>
 
 
 <script>
-import FooterComponent from '@/components/Footer.vue'; 
+
 
 /* scrollspy in js */
 export default {
   name: 'HomeView',
   components: {
-    FooterComponent
+   
   },
   mounted() {
     

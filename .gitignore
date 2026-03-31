@@ -24,6 +24,13 @@ dist-ssr/
 dump.rdb
 celerybeat-schedule
 
+# --- Celery Generated Reports ---
+*.csv
+report_doc_*.html
+
 # --- OS Specific ---
 .DS_Store
 Thumbs.db
+
+# Environment Variables
+.env

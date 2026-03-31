@@ -243,6 +243,7 @@
 </template>
 
 <script>
+import apiClient from '@/axios';
 export default {
   name: 'AdminDashboard',
   data() {
@@ -279,67 +280,80 @@ export default {
 
     // --- FETCHING LOGIC ---
     async fetchStats() {
-      const res = await fetch('http://127.0.0.1:5000/api/admin/stats', {
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token') }
-      });
-      if (res.ok) this.stats = await res.json();
+      try {
+        const res = await apiClient.get('/api/admin/stats');
+        this.stats = res.data;
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      }
     },
-
+      
     async fetchPatients() {
-      let url = 'http://127.0.0.1:5000/api/patients';
-      if (this.patientSearchQuery) url += `?search=${this.patientSearchQuery}`;
-      const res = await fetch(url, { headers: { 'Authentication-Token': localStorage.getItem('auth_token') } });
-      if (res.ok) this.patients = await res.json();
+      try {
+        const res = await apiClient.get('/api/patients', {
+          params: { search: this.patientSearchQuery }
+        });
+        this.patients = res.data;
+      } catch (err) {
+        console.error("Error fetching patients:", err);
+      }
     },
 
     async fetchDoctors() {
-      let url = 'http://127.0.0.1:5000/api/doctors';
-      if (this.searchQuery) url += `?search=${this.searchQuery}`;
-      const res = await fetch(url, { headers: { 'Authentication-Token': localStorage.getItem('auth_token') } });
-      if (res.ok) this.doctors = await res.json();
+      try {
+        const res = await apiClient.get('/api/doctors', {
+          params: { search: this.searchQuery }
+        });
+        this.doctors = res.data;
+      } catch (err) {
+        console.error("Error fetching doctors:", err);
+      }
     },
 
     async fetchAppointments() {
-      let url = `http://127.0.0.1:5000/api/admin/appointments?search=${this.appSearchQuery}&category=${this.appCategory}`;
-      const res = await fetch(url, { headers: { 'Authentication-Token': localStorage.getItem('auth_token') } });
-      if (res.ok) this.appointments = await res.json();
+      try {
+        const res = await apiClient.get('/api/admin/appointments', {
+          params: { 
+            search: this.appSearchQuery, 
+            category: this.appCategory 
+          }
+        });
+        this.appointments = res.data;
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+      }
     },
 
     // --- DOCTOR ACTIONS ---
-    updateDeptId() { this.newDoctor.department_id = this.deptMapping[this.selectedDeptName]; },
+    updateDeptId() { 
+      this.newDoctor.department_id = this.deptMapping[this.selectedDeptName]; 
+    },
 
     async addDoctor() {
-      const data = {
+      const payload = {
         name: `Dr. ${this.newDoctor.name.trim()}`,
         email: `${this.newDoctor.username}@healix.com`,
         password: this.newDoctor.password,
         department_id: this.newDoctor.department_id,
         career_start_year: this.newDoctor.career_start_year
       };
-      const res = await fetch('http://127.0.0.1:5000/api/doctors', {
-        method: 'POST',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token'), 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (res.ok) {
+      try {
+        await apiClient.post('/api/doctors', payload);
+        
         alert("Doctor Added");
         this.showAddForm = false;
         this.fetchDoctors();
         this.fetchStats();
         
-        // emptying the boxes when adding new doc 
+        // Reset form
         this.newDoctor = { name: '', username: '', password: '', department_id: '', career_start_year: '' };
         this.selectedDeptName = ''; 
 
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.message 
-                    || (errorData.response && errorData.response.errors ? errorData.response.errors[0] : null) 
-                    || JSON.stringify(errorData);
-                    
-        alert("Action Failed: " + errMsg);
+      } catch (err) {
+        // Much cleaner error handling with Axios
+        const errMsg = err.response?.data?.message || err.response?.data?.response?.errors?.[0] || "Action Failed";
+        alert("Error: " + errMsg);
       }
-      
     },
     startEdit(doc) {
       this.editingDoctor = doc.id;
@@ -359,64 +373,60 @@ export default {
         department_id: this.editForm.department_id,
         career_start_year: this.editForm.career_start_year
       };
-
-      const res = await fetch(`http://127.0.0.1:5000/api/doctors/${this.editingDoctor}`, {
-        method: 'PUT',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token'), 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      if (res.ok) {
+      try {
+        await apiClient.put(`/api/doctors/${this.editingDoctor}`, payload);
+        
         this.editingDoctor = null;
         this.fetchDoctors();
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.message || (errorData.response?.errors?.[0]) || JSON.stringify(errorData);
-        alert("Action Failed: " + errMsg);
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.response?.data?.response?.errors?.[0] || "Update Failed";
+        alert("Error: " + errMsg);
       }
     },
 
     async deleteDoctor(id) {
       if (!confirm('Delete doctor profile and account?')) return;
-      await fetch(`http://127.0.0.1:5000/api/doctors/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token') }
-      });
-      this.fetchDoctors();
-      this.fetchStats();
+      try {
+        await apiClient.delete(`/api/doctors/${id}`);
+        this.fetchDoctors();
+        this.fetchStats();
+      } catch (err) {
+        alert("Error: " + (err.response?.data?.message || "Could not delete"));
+      }
     },
 
     // --- PATIENT ACTIONS ---
     async deletePatient(id) {
       if (!confirm('Delete patient account?')) return;
-      await fetch(`http://127.0.0.1:5000/api/patients/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token') }
-      });
-      this.fetchPatients();
-      this.fetchStats();
+      try {
+        await apiClient.delete(`/api/patients/${id}`);
+        this.fetchPatients();
+        this.fetchStats();
+      } catch (err) {
+        alert("Error: " + (err.response?.data?.message || "Could not delete"));
+      }
     },
 
     // --- APPOINTMENT ACTIONS ---
     async updateAppStatus(id, status) {
-      await fetch(`http://127.0.0.1:5000/api/admin/appointments/${id}`, {
-        method: 'PUT',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      this.fetchAppointments();
+      try {
+        await apiClient.put(`/api/admin/appointments/${id}`, { status });
+        this.fetchAppointments();
+      } catch (err) {
+        alert("Error updating status: " + (err.response?.data?.message || "Failed"));
+      }
     },
 
     async deleteAppointment(id) {
       if (!confirm('Delete appointment record?')) return;
-      await fetch(`http://127.0.0.1:5000/api/admin/appointments/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authentication-Token': localStorage.getItem('auth_token') }
-      });
-      this.fetchAppointments();
-      this.fetchStats();
+      try {
+        await apiClient.delete(`/api/admin/appointments/${id}`);
+        this.fetchAppointments();
+        this.fetchStats();
+      } catch (err) {
+        alert("Error: " + (err.response?.data?.message || "Could not delete"));
+      }
     },
-
     getStatusClass(status) {
       return {
         'badge bg-success': status === 'Booked',

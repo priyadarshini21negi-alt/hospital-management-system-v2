@@ -49,13 +49,17 @@
 </template>
 
 <script>
+
+import apiClient from '@/axios'; 
+
 export default {
   name: 'LoginView',
   data() {
     return {
       email: '',
       password: '',
-      error: null
+      error: null,
+      isLoading: false 
     }
   },
   methods: {
@@ -66,48 +70,50 @@ export default {
         return;
       }
 
+      this.isLoading = true;
+
       try {
-        // 1. Get the Token
-        const response = await fetch('http://127.0.0.1:5000/login?include_auth_token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: this.email, password: this.password })
+        // 1. Get the Token using Axios (Much cleaner syntax!)
+        const response = await apiClient.post('/login?include_auth_token', {
+          email: this.email, 
+          password: this.password
         });
 
-        const data = await response.json();
+        // Axios automatically parses JSON, so response.data is ready to use
+        const token = response.data.response.user.authentication_token;
+        
+        // 2. Save token to Browser Storage immediately
+        // (This makes the interceptor active for the next request)
+        localStorage.setItem('auth_token', token);
 
-        if (response.ok) {
-          const token = data.response.user.authentication_token;
-          
-          // 2. Save token to Browser Storage
-          localStorage.setItem('auth_token', token);
+        // 3. Fetch User Role using Axios
+        
+        const userResponse = await apiClient.get('/api/user_info');
+        const userData = userResponse.data;
 
-          // 3. Fetch User Role
-          const userResponse = await fetch('http://127.0.0.1:5000/api/user_info', {
-            headers: { 'Authentication-Token': token }
-          });
-          const userData = await userResponse.json();
+        // Save role and email
+        localStorage.setItem('user_role', userData.roles[0]);
+        localStorage.setItem('user_email', userData.email);
 
-          // Save role and email
-          localStorage.setItem('user_role', userData.roles[0]);
-          localStorage.setItem('user_email', userData.email);
-
-          // 4. Role-Based Redirection!
-          if (userData.roles.includes('admin')) {
-            this.$router.push('/admin-dashboard');
-          } else if (userData.roles.includes('patient')) {
-            this.$router.push('/patient-dashboard');
-          } else if (userData.roles.includes('doctor')) {
-            this.$router.push('/doctor-dashboard');
-          }
-
-        } else {
-          this.error = "Invalid Email or Password";
+        // 4. Role-Based Redirection!
+        if (userData.roles.includes('admin')) {
+          this.$router.push('/admin-dashboard');
+        } else if (userData.roles.includes('patient')) {
+          this.$router.push('/patient-dashboard');
+        } else if (userData.roles.includes('doctor')) {
+          this.$router.push('/doctor-dashboard');
         }
 
       } catch (err) {
         console.error(err);
-        this.error = "Could not connect to server.";
+        // Axios wraps errors. A 400/401 from Flask means bad credentials.
+        if (err.response && (err.response.status === 400 || err.response.status === 401)) {
+          this.error = "Invalid Email or Password";
+        } else {
+          this.error = "Could not connect to server. Is Flask running?";
+        }
+      } finally {
+        this.isLoading = false;
       }
     }
   }

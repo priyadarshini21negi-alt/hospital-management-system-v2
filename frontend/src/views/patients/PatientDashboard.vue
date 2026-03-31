@@ -155,6 +155,8 @@
 </template>
 
 <script>
+import apiClient from '@/axios';
+
 export default {
   name: 'PatientDashboard',
 
@@ -221,9 +223,9 @@ export default {
         const data = await response.json();
 
         if (response.status === 202) {
-          alert("✅ " + data.message + " Check your Mailtrap inbox shortly!");
+          alert(data.message + " Check your Mailtrap inbox shortly!");
         } else {
-          alert("❌ Export failed: " + data.message);
+          alert("Export failed: " + data.message);
         }
         
       } catch (error) {
@@ -238,16 +240,13 @@ export default {
       this.$router.push('/login');
     },
 
-    async fetchDoctorList() {
-      try {
-        const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://127.0.0.1:5000/api/doctors', {
-          headers: { 'Authentication-Token': token }
-        });
-        const data = await response.json();
-        this.availableDoctors = Array.isArray(data) ? data : [];
-      } catch (err) {
-        console.error("Error fetching doctors:", err);
+    async fetchDoctorList(){
+      try{
+        const response = await apiClient.get('/api/doctors');
+        this.availableDoctors = Array.isArray(response.data) ? response.data : [];
+      
+      } catch(err){
+        console.error("Error fetching doctors: ", err)
       }
     },
 
@@ -303,35 +302,29 @@ export default {
       }
     },
 
-    async submitBooking() {
-      try {
-        const token = localStorage.getItem('auth_token');
+    async submitBooking(){
+      try{
         const selectedSlot = this.openSlots.find(slot => slot.id === this.bookingForm.slot_id);
-        if (!selectedSlot) return alert("Please select a valid time slot.");
-        
-        const payload = { 
+
+        if(!selectedSlot){
+          return alert("Please select a valid time slot.");
+        }
+
+        const payload = {
           doctor_id: this.bookingForm.doctor_id,
           appointment_datetime: selectedSlot.start
         };
-        const response = await fetch('http://127.0.0.1:5000/api/patient/appointments', {
-          method: 'POST',
-          headers: { 
-            'Authentication-Token': token, 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify(payload)
-        });
 
-        if (response.ok) {
-          alert("Appointment successfully secured!");
-          this.bookingForm = { doctor_id: '', slot_id: '' }; 
-          this.openSlots = []; 
-          this.fetchAppointmentHistory(); 
-        } else {
-          const errorData = await response.json();
-          alert(errorData.message);
-        }
-      } catch (err) {
+        /*axios call*/
+        const response = await apiClient.post('/api/patient/appointments', payload);
+        alert("Appointment successfully secured!");
+        this.bookingForm = {doctor_id: '', slot_id: ''};
+        this.openSlots = [];
+        this.fetchAppointmentHistory();
+      }
+      catch (err){
+        const errorMessage = err.response?.data?.message || "Booking failed.";
+        alert("Error: " + errorMessage);
         console.error("Booking error:", err);
       }
     },
@@ -375,7 +368,7 @@ export default {
         console.error("Error updating profile:", err);
       }
     }
-  }, // <--- The Methods object is properly closed down here now.
+  }, 
 
   mounted() {
     this.fetchDoctorList();
