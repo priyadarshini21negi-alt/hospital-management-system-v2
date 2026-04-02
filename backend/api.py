@@ -97,22 +97,26 @@ class DoctorAPI(Resource):
     @auth_required("token")
 
     def get(self, doctor_id=None):
-        cache_key = f"doctors_list_{doctor_id}"
+        search_query = request.args.get('search', '').strip()
+
+        if doctor_id:
+            cache_key = f"doctors_list_{doctor_id}"
+        else:
+            cache_key = f"doctors_list_None_search_{search_query}"
+        
         cached_data = cache.get(cache_key)
-
         if cached_data:
-            return cached_data, 200
+            return cached_data, 200 
 
-        # --- DATABASE FETCH LOGIC ---
+        #---db fetch logic---
         if doctor_id:
             doctor = Doctor.query.get(doctor_id)
             if not doctor:
                 return {"message": "Doctor not found"}, 404 
-            res = doctor.to_dict() 
+            res = doctor.to_dict()
         else:
-            search_query = request.args.get('search', '').strip()
             if search_query:
-                doctors = Doctor.query.filter(
+                doctors=Doctor.query.filter(
                     or_(
                         Doctor.name.ilike(f"%{search_query}%"),
                         Doctor.department.has(Department.name.ilike(f"%{search_query}%"))
@@ -120,7 +124,6 @@ class DoctorAPI(Resource):
                 ).all()
             else:
                 doctors = Doctor.query.all()
-            
             res = [doc.to_dict() for doc in doctors]
 
         # ---CACHING LOGIC ---
@@ -134,12 +137,29 @@ class DoctorAPI(Resource):
         data = request.get_json()
         
         # --VALIDATION--
+        ds = current_app.extensions['security'].datastore
         
         try:
-            
+            #creating base user
+            user = ds.create_user(
+                email=data.get('email'),
+                password=hash_password(data.get('password')),
+                roles = ['doctor']
+            )
+
+            #creating new doc and linking to user 
+            new_doctor = Doctor(
+                name=data.get('name'),
+                career_start_year=data.get("career_start_year"),
+                department_id = data.get('department_id'),
+                user=user
+            )
+
+
+            db.session.add(new_doctor)
             db.session.commit()
            
-            cache.delete("doctors_list_None")
+            cache.delete("doctors_list_None_search_")
             return {"message": "Doctor created successfully!"}, 201
         except Exception as e:
             db.session.rollback()
@@ -151,17 +171,28 @@ class DoctorAPI(Resource):
         doctor = Doctor.query.get(doctor_id)
         if not doctor:
             return {"message": "Doctor not found"}, 404 
-        
-       
 
+        data = request.get_json()
         try:
+            # updating the fields 
+            if 'name' in data:
+                doctor.name = data['name']
+            if 'career_start_year' in data:
+                doctor.career_start_year = data['career_start_year']
+            if 'department_id' in data:
+                doctor.department_id = data['department_id']
+            if 'email' in data:
+                doctor.user.email = data['email']
+
             db.session.commit()
-            cache.delete("doctors_list_None")
+            
+            cache.delete("doctors_list_None_search_")
             cache.delete(f"doctors_list_{doctor_id}")
             return {"message": "Doctor updated successfully"}, 200
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500
+       
         
     @auth_required("token")
     @role_required("admin")
@@ -176,7 +207,7 @@ class DoctorAPI(Resource):
             db.session.delete(user)
             db.session.commit()
           
-            cache.delete("doctors_list_None")
+            cache.delete("doctors_list_None_search_")
             cache.delete(f"doctors_list_{doctor_id}")
             return {"message": "Doctor deleted successfully"}, 200
         except Exception as e:
@@ -464,14 +495,33 @@ class PatientAppointmentsAPI(Resource):
 
         try: #post methods
             app_dt = datetime.fromisoformat(datetime_str)
-            slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
+            new_slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
             
-            if not slot:
+            if not new_slot:
                 return {"message": "This time slot does not exist."}, 404 
-            if slot.is_booked:
+            if new_slot.is_booked:
                 return {"message": "This slot is already booked!"}, 409 
             
-            slot.is_booked = True #marking slots as booked 
+            
+
+
+            #--logic preventing patient overlap 
+            active_appointments = Appointment.query.filter_by(
+                patient_id=current_user.patient.id,
+                status="Booked"
+                ).all() 
+            for app in active_appointments:
+                existing_slot = DocAvailability.query.filter_by(
+                    doctor_id=app.doctor_id,
+                    start_time=app.appointment_datetime
+                ).first()
+                
+                if existing_slot:
+                    if existing_slot.start_time < new_slot.end_time and existing_slot.end_time > new_slot.start_time:
+                        return {"message": f"Conflict! You already have an appointment with {app.doctor.name} at this time."}, 409 
+
+            #if no overlap then go on with the booking 
+            new_slot.is_booked = True        
 
             new_appointment = Appointment(
                 patient_id=current_user.patient.id, 
@@ -481,7 +531,9 @@ class PatientAppointmentsAPI(Resource):
             )
             db.session.add(new_appointment)
             db.session.commit()
+
             cache.delete(f'/api/doctors/{doctor_id}/slots')
+
             return {"message": "Appointment booked successfully!"}, 201
             
         except IntegrityError:
@@ -490,6 +542,7 @@ class PatientAppointmentsAPI(Resource):
             
         except ValueError:
             return {"message": "Invalid date format."}, 400
+
         except Exception as e:
             db.session.rollback()
             return {"message": str(e)}, 500
@@ -545,7 +598,7 @@ class DoctorPublicSlotsAPI(Resource):
             and_(
                 DocAvailability.doctor_id==doctor_id,
                 DocAvailability.start_time >= now,
-                DocAvailability.is_booked == False  #to only show unbooked slots
+                DocAvailability.is_booked == False   
             )
         ).order_by(DocAvailability.start_time.asc()).all()
         return [slot.to_dict() for slot in slots], 200
