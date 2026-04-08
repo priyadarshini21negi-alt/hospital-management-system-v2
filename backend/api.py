@@ -44,25 +44,25 @@ class PatientRegister(Resource):
         name = data.get('name')
         number = data.get('number')
         
-        #validation :-
+        
         if not email or not password or not name:
             return{"message": "Email, Password, and Name are required"}, 400
 
         if User.query.filter_by(email=email).first():
             return{"message": "User with this email already exists"}, 409
         
-        # flask-security datastore 
+        
         ds = current_app.extensions['security'].datastore 
 
         try:
-            #creating base user
+            
             user = ds.create_user(
                 email=email,
                 password=hash_password(password),
                 roles=['patient']
             )
 
-            #creating patient profile one-one link
+            
             patient = Patient(name=name, number=number, user=user)
             db.session.add(patient)
             db.session.commit()
@@ -80,7 +80,7 @@ class UserResource(Resource):
     @auth_required("token")
     def get(self):
         
-        #Used by Vue.js to check if the token is valid and get the user's role.
+        
         return {
             "id": current_user.id,
             "email": current_user.email,
@@ -108,7 +108,7 @@ class DoctorAPI(Resource):
         if cached_data:
             return cached_data, 200 
 
-        #---db fetch logic---
+        
         if doctor_id:
             doctor = Doctor.query.get(doctor_id)
             if not doctor:
@@ -136,18 +136,18 @@ class DoctorAPI(Resource):
     def post(self):
         data = request.get_json()
         
-        # --VALIDATION--
+       
         ds = current_app.extensions['security'].datastore
         
         try:
-            #creating base user
+            
             user = ds.create_user(
                 email=data.get('email'),
                 password=hash_password(data.get('password')),
                 roles = ['doctor']
             )
 
-            #creating new doc and linking to user 
+            
             new_doctor = Doctor(
                 name=data.get('name'),
                 career_start_year=data.get("career_start_year"),
@@ -174,7 +174,7 @@ class DoctorAPI(Resource):
 
         data = request.get_json()
         try:
-            # updating the fields 
+          
             if 'name' in data:
                 doctor.name = data['name']
             if 'career_start_year' in data:
@@ -221,14 +221,13 @@ class DoctorAPI(Resource):
 #----------------------------------------------------
 class PatientAPI(Resource):
     
-    # R: Admin fetching all patients (with Search)
     @auth_required("token")
     @role_required("admin")
     def get(self):     
         search_query = request.args.get('search', '').strip()
         
         if search_query:
-            # Filter by Name OR cast ID to String for partial match search
+            
             patients = Patient.query.filter(
                 or_(
                     Patient.name.ilike(f"%{search_query}%"),
@@ -238,7 +237,7 @@ class PatientAPI(Resource):
         else:
             patients = Patient.query.all()
         
-        # Serialize the data for Vue
+       
         patient_list = []
         for p in patients:
             patient_list.append({
@@ -260,7 +259,7 @@ class PatientAPI(Resource):
             return {"message": "Patient not found"}, 404
 
         try:
-            # Hard delete: remove both patient profile and their login credentials
+            
             user = patient.user
             db.session.delete(patient)
             if user:
@@ -277,13 +276,13 @@ class PatientAPI(Resource):
 # 5. ADMIN APPOINTMENT API 
 #---------------------------------------------------- 
 class AdminAppointmentAPI(Resource):
-    #fetching all appointment with search and filters 
+    
     @auth_required("token")
     @role_required("admin")
     def get(self):
         
 
-        query = Appointment.query.join(Doctor).join(Patient) # Join early for search logic
+        query = Appointment.query.join(Doctor).join(Patient) 
         
         search_query = request.args.get('search', '').strip()
         if search_query:
@@ -299,14 +298,14 @@ class AdminAppointmentAPI(Resource):
         now = datetime.utcnow()
         
         if category == "upcoming":
-            query = query.filter(Appointment.appointment_datetime >= now) # Fixed typo
+            query = query.filter(Appointment.appointment_datetime >= now) 
         elif category == "past":
-            query = query.filter(Appointment.appointment_datetime < now) # Added logic
+            query = query.filter(Appointment.appointment_datetime < now) 
             
         appointments = query.order_by(Appointment.appointment_datetime.desc()).all()
         return [app.to_dict() for app in appointments], 200
 
-    # U: Update appointment status (e.g., Cancelled)
+    # U: Update appointment status
     @auth_required("token")
     @role_required("admin")
     def put(self, appointment_id):
@@ -349,7 +348,7 @@ class AdminStatsAPI(Resource):
     @auth_required("token")
     @role_required("admin")
     def get(self):
-        # Security check
+        
            
         return {
             "total_patients": Patient.query.count(),
@@ -365,17 +364,14 @@ class DoctorAppointmentsAPI(Resource):
     @auth_required("token")
     @role_required("doctor")
     def get(self):
-  
-        
-        # specific doc - userprofile
         current_doctor = current_user.doctor 
         if not current_doctor:
             return {"message": "Doctor profile not found."}, 404
 
-        #  ONLY this doctor's appointments
+        
         appointments = Appointment.query.filter_by(doctor_id=current_doctor.id).order_by(Appointment.appointment_datetime.asc()).all()
         
-        # Includes treatment info if completed
+        
         result = []
         for app in appointments:
             app_data = app.to_dict()
@@ -387,7 +383,7 @@ class DoctorAppointmentsAPI(Resource):
             
         return result, 200
 
-    #  Add a treatment to an appointment
+    
     @auth_required("token")
     @role_required("doctor")
     def post(self):
@@ -400,19 +396,18 @@ class DoctorAppointmentsAPI(Resource):
 
         if not appointment:
             return {"message": "Appointment not found"}, 404
-         # appointment actually belongs to this doctor
+         
         if appointment.doctor_id != current_user.doctor.id:
             return {"message": "You cannot treat another doctor's patient."}, 403
 
         try:
-            # Create Treatment
             new_treatment = Treatment(
                 appointment_id=appointment.id,
                 diagnosis=data.get('diagnosis'),
                 prescription=data.get('prescription'),
                 notes=data.get('notes', '')
             )
-            # Update Appointment Status
+            
             appointment.status = AppointmentStatus.COMPLETED.value 
             
             db.session.add(new_treatment)
@@ -423,7 +418,7 @@ class DoctorAppointmentsAPI(Resource):
             db.session.rollback()
             return {"message": str(e)}, 500
         
-    # D doc cancelling appointment 
+    #D doc cancelling appointment 
     @auth_required("token")
     @role_required("doctor")
     def put(self, appointment_id=None):
@@ -434,7 +429,7 @@ class DoctorAppointmentsAPI(Resource):
 
         appointment = Appointment.query.get(appointment_id)
         
-        #ensuring appointment exists and belongs to this doc 
+         
         if not appointment or appointment.doctor_id != current_user.doctor.id:
             return {"message": "Appointment not found or unauthorized."}, 404 
         data = request.get_json()
@@ -462,7 +457,6 @@ class DoctorAppointmentsAPI(Resource):
 # 7. PATIENT APPOINTMENT API 
 #---------------------------------------------------- 
 class PatientAppointmentsAPI(Resource):
-    # R: Patient viewing their own appointments
     @auth_required("token")
     @role_required("patient")
     def get(self):
@@ -488,12 +482,12 @@ class PatientAppointmentsAPI(Resource):
         
         data = request.get_json()
         doctor_id = data.get('doctor_id')
-        datetime_str = data.get('appointment_datetime') # Expected: YYYY-MM-DDTHH:MM
+        datetime_str = data.get('appointment_datetime') 
         
         if not doctor_id or not datetime_str:
             return {"message": "Doctor and Date/Time are required"}, 400
 
-        try: #post methods
+        try: 
             app_dt = datetime.fromisoformat(datetime_str)
             new_slot = DocAvailability.query.filter_by( doctor_id=doctor_id, start_time=app_dt).first()
             
@@ -505,7 +499,7 @@ class PatientAppointmentsAPI(Resource):
             
 
 
-            #--logic preventing patient overlap 
+            #preventing patient overlap 
             active_appointments = Appointment.query.filter_by(
                 patient_id=current_user.patient.id,
                 status="Booked"
@@ -520,7 +514,7 @@ class PatientAppointmentsAPI(Resource):
                     if existing_slot.start_time < new_slot.end_time and existing_slot.end_time > new_slot.start_time:
                         return {"message": f"Conflict! You already have an appointment with {app.doctor.name} at this time."}, 409 
 
-            #if no overlap then go on with the booking 
+             
             new_slot.is_booked = True        
 
             new_appointment = Appointment(
@@ -538,7 +532,7 @@ class PatientAppointmentsAPI(Resource):
             
         except IntegrityError:
             db.session.rollback()
-            return {"message": "Too slow! This slot was just booked by someone else."}, 409
+            return {"message": "This slot was just booked by someone else."}, 409
             
         except ValueError:
             return {"message": "Invalid date format."}, 400
@@ -555,16 +549,16 @@ class PatientAppointmentsAPI(Resource):
         if not appointment_id:
             return {"message": "Appointment ID required"}, 400 
         
-        #finding appointment and verifying ownership 
+       
         appointment = Appointment.query.get(appointment_id)
         if not appointment or appointment.patient_id != current_user.patient.id:
             return {"message": "Appointment not found or unauthorized."}, 404 
-        #preventing cancelling past/completed appointment 
+         
         if appointment.status==AppointmentStatus.COMPLETED.value:
             return {"message": "Cannot cancel a completed consultation."}, 400 
         
         try: 
-            # unbooking on doc's side
+           
             slot=DocAvailability.query.filter_by(
                 doctor_id=appointment.doctor_id,
                 start_time=appointment.appointment_datetime
@@ -630,7 +624,7 @@ class PatientProfileAPI(Resource):
         data = request.get_json()
         patient = current_user.patient
         
-        # Update fields if they were provided
+        
         if 'name' in data:
             patient.name = data['name']
         if 'number' in data:
@@ -653,8 +647,7 @@ class PatientProfileAPI(Resource):
 class DocAvailabilityAPI(Resource):
     @auth_required("token")
     @role_required("doctor")
-    def get(self):   #future available slots
-       
+    def get(self):  
 
         now = datetime.utcnow()
         slots = DocAvailability.query.filter(
@@ -680,19 +673,19 @@ class DocAvailabilityAPI(Resource):
             now = datetime.utcnow()
             limit = now + timedelta(days=7)
 
-            # Past Check
+            
             if start_dt < now:
                 return {"message": "Cannot schedule slots in the past."}, 400
 
-            # 7 Day Limit
+            
             if start_dt > limit:
                 return {"message": "Availability can only be set for next 7 days."}, 400
 
-            # End > Start
+            
             if end_dt <= start_dt:
                 return {"message": "End time must be after start time."}, 400
 
-            # Overlap Check
+           
             overlapping = DocAvailability.query.filter(
                 DocAvailability.doctor_id == current_user.doctor.id,
                 DocAvailability.start_time < end_dt,
@@ -702,7 +695,7 @@ class DocAvailabilityAPI(Resource):
             if overlapping:
                 return {"message": "This slot overlaps with an existing slot."}, 409
 
-            # Create Slot
+            
             new_slot = DocAvailability(
                 doctor_id=current_user.doctor.id,
                 start_time=start_dt,
@@ -790,11 +783,10 @@ class ExportHistoryAPI(Resource):
          
         patient_id = current_user.patient.id 
 
-        #importing task here to avoid circular imports 
         from .__init__ import export_patient_history 
-        #triggering the celery task asynchronously using .delay()
+        
         task =  export_patient_history.delay(patient_id)
-        # Return immediately to the user while Celery works in the background
+        
         return {
             "message":"Export Started.",
             "task_id":task.id 

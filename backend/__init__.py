@@ -20,13 +20,14 @@ db = SQLAlchemy()
 cache = Cache(config={
     'CACHE_TYPE': 'RedisCache',
     'CACHE_REDIS_URL': 'redis://localhost:6379/0',
-    'CACHE_DEFAULT_TIMEOUT': 300 # Default TTL is 5 minutes
+    'CACHE_DEFAULT_TIMEOUT': 300 
 })
 security = Security()
 mail = Mail()
 celery = Celery(__name__, 
                 broker="redis://localhost:6379/0",
                 backend="redis://localhost:6379/0")
+
 
 @celery.task(name="backend.export_patient_history")
 def export_patient_history(patient_id):
@@ -41,10 +42,10 @@ def export_patient_history(patient_id):
 
     history = Appointment.query.filter_by(
         patient_id=patient_id,
-        status="completed"
+        status="Completed"
     ).order_by(Appointment.appointment_datetime.desc()).all() 
 
-    #ensuring export directory exists 
+    
     export_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
@@ -52,7 +53,7 @@ def export_patient_history(patient_id):
     file_name=f"patient_{patient_id}_history.csv"
     file_path=os.path.join(export_dir, file_name) 
 
-    #writing the csv file 
+   
     with open(file_path,'w',newline='') as csvfile:
         fieldnames = ['Date', 'Doctor', 'Diagnosis', 'Prescription', 'Notes']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames) 
@@ -66,13 +67,19 @@ def export_patient_history(patient_id):
                 'Prescription': app.treatment.prescription if app.treatment else 'N/A',
                 'Notes': app.treatment.notes if app.treatment else ''
             })
-    #email alert sending 
+    
     msg = Message(
         subject = "Your medical history is ready",
         sender="noreply@healix.com",
         recipients=[patient.user.email]
     )
     msg.body = f"Hello {patient.name},\n\nYour requested medical history export has been generated successfully.\n\nHealix Hospital"
+    with open(file_path, 'rb') as fp:
+        msg.attach(
+            filename=file_name, 
+            content_type="text/csv", 
+            data=fp.read()
+        )
     mail.send(msg)
 
     print(f"Export complete. File saved at {file_path}")
@@ -83,7 +90,7 @@ def export_patient_history(patient_id):
 @celery.task 
 def generate_monthly_reports():
     from .models import Doctor, Appointment 
-    #importing inside cuz it was crashing in Circular imports 
+      
 
     print("Generating monthly reports for all doctors...")
 
@@ -151,14 +158,14 @@ def send_daily_reminders():
     return f"Sent {len(todays_appointments)} reminders."
 
 celery.conf.beat_schedule = {
-    'test-reminders-every-minute': {
+    'daily-appointment-reminders': {
         'task': 'backend.send_daily_reminders',  
-        'schedule': crontab(minute='*'),
+        'schedule': crontab(hour=6, minute=0),
     },
     'monthly-report-1st-day': {
         'task':'backend.generate_monthly_reports',
         'schedule':crontab(minute=0, hour=0, day_of_month=1),
-        #'schedule':crontab(minute='*'), 
+         
     }
 }
 

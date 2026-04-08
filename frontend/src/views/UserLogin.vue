@@ -17,7 +17,7 @@
                   id="email" 
                   v-model="email" 
                   required 
-                  placeholder="admin@hms.com"
+                  placeholder="xyz@mail.com"
                 >
               </div>
 

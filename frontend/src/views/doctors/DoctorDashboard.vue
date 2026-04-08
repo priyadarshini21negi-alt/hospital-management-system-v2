@@ -2,7 +2,7 @@
   <div class="container py-4 mt-5 pt-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2 border-primary-subtle">
       <h2 class="fw-bolder text-primary tracking-tight text-capitalize">
-        <i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Welcome, {{ doctorProfile.name || 'Doctor' }}
+        <i class="bi bi-heart-pulse-fill me-2 text-danger"></i>Welcome, Doctor
       </h2>
       <button @click="logoutAccount" class="btn btn-outline-danger px-4 fw-semibold shadow-sm rounded-pill">
         Logout

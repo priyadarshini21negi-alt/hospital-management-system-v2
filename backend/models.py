@@ -5,7 +5,7 @@ from flask_security import UserMixin, RoleMixin
 # ROLES TABLE / ASSOCIATION db.Table
 role_users = db.Table(
     'roles_users',
-    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')), # Capital 'C'
+    db.Column('user_id', db.Integer(), db.ForeignKey('user.id')), 
     db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
 )
 
@@ -39,7 +39,7 @@ class User(db.Model,UserMixin):
         return{
             "id":self.id,
             "email":self.email,
-            "role":[r.name for r in self.roles] #return list of roles for Vue 
+            "role":[r.name for r in self.roles] 
         } 
     
 
@@ -52,10 +52,10 @@ class Doctor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False) 
     career_start_year = db.Column(db.Integer, nullable=True)
-    #foreign keys :-
+    
     department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
-    #relationships : 
+   
     user = db.relationship('User', back_populates='doctor')
     department = db.relationship('Department', back_populates='doctors')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade="all, delete")
@@ -92,7 +92,7 @@ class Patient(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
 
-    # Relationships
+   
     user = db.relationship('User', back_populates='patient')
     appointments = db.relationship('Appointment', back_populates='patient', cascade="all, delete") 
 
@@ -120,7 +120,7 @@ class Appointment(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
     appointment_datetime = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), nullable=False, default="Booked") 
-    #relationships
+    
     doctor = db.relationship('Doctor', back_populates='appointments')
     patient = db.relationship('Patient', back_populates='appointments')
     treatment=db.relationship('Treatment', back_populates='appointment', uselist=False, cascade="all, delete")
@@ -149,7 +149,7 @@ class Treatment(db.Model):
     diagnosis = db.Column(db.String(500), nullable=False)
     prescription = db.Column(db.String(500), nullable=False)
     notes = db.Column(db.String(500), nullable=True)
-    #relationships 
+    
     appointment = db.relationship('Appointment', back_populates='treatment') 
 
     def to_dict(self):
@@ -171,7 +171,6 @@ class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)  
 
-    #One Department -> Many Doctors 
     doctors = db.relationship('Doctor', back_populates='department') 
 
     def to_dict(self):

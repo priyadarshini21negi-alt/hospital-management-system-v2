@@ -248,24 +248,24 @@ export default {
   name: 'AdminDashboard',
   data() {
     return {
-      // Stats
+     
       stats: { total_patients: 0, total_doctors: 0, total_appointments: 0 },
-      // Search Queries
+      
       searchQuery: '',
       patientSearchQuery: '',
       appSearchQuery: '',
       appCategory: '',
-      // Data Arrays
+      
       doctors: [],
       patients: [],
       appointments: [],
-      // Doctor Form States
+      
       showAddForm: false,
       selectedDeptName: '',
       newDoctor: { name: '', username: '', password: '', department_id: '', career_start_year: '' },
       editingDoctor: null,
       editForm: { name: '', email:'', department_id: '', career_start_year: '' },
-      // Mappings
+      
       deptMapping: {
         "Cardiology": 1, "Dermatology": 2, "Emergency Medicine": 3,
         "General Medicine": 4, "Neurology": 5, "Oncology": 6
@@ -345,12 +345,12 @@ export default {
         this.fetchDoctors();
         this.fetchStats();
         
-        // Reset form
+        
         this.newDoctor = { name: '', username: '', password: '', department_id: '', career_start_year: '' };
         this.selectedDeptName = ''; 
 
       } catch (err) {
-        // Much cleaner error handling with Axios
+        
         const errMsg = err.response?.data?.message || err.response?.data?.response?.errors?.[0] || "Action Failed";
         alert("Error: " + errMsg);
       }

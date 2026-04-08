@@ -260,7 +260,7 @@ export default {
   transition: color 0.3s ease-in-out;
 }
 
-/* inverting colours */
+
 .service-card:hover {
   background-color: #1f4e79 !important;
   transform: translateY(-5px);
