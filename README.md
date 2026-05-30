@@ -1,7 +1,7 @@
 # Hospital Management System V2 (HMS-V2)
 
 ## Overview
-HMS-V2 is a hospital management platform designed to streamline interactions between **Admins, Doctors, and Patients**. This project is a scalable upgrade of the MAD 1 architecture, transitioning from a monolith to a modern decoupled architecture with a dedicated API backend and a reactive frontend.
+HMS-V2 is a hospital management platform designed to streamline interactions between **Admins, Doctors, and Patients**.
 
 ## Tech Stack
 * **Frontend:** Vue.js 3, Vue Router, Vuex/Pinia, Bootstrap 5 
